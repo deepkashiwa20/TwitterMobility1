@@ -99,24 +99,38 @@ logger.info('model_name', model_name)
 # torch.manual_seed(opt.seed)
 # if torch.cuda.is_available():
 #    torch.cuda.manual_seed(opt.seed)
-    
-def CopyLastSteps(XS, YS):
-    return XS
 
-def testModel(name, mode, XS, YS):
-    logger.info('TIMESTEP_IN, TIMESTEP_OUT', opt.his_len, opt.seq_len)
-    YS_pred = CopyLastSteps(XS, YS)
-    logger.info('YS.shape, YS_pred.shape,', YS.shape, YS_pred.shape)
+def get_seq_data_idx(data, seq_len):
+    seq_data_idx = [np.arange(i, i+seq_len) for i in range(0, data.shape[0]-seq_len+1)]
+    return np.array(seq_data_idx)
+
+def HistoricalAverage(data, YS_index):
+    HISTORYDAY, DAYTIMESTEP = 7, 24
+    XS_Week = []
+    for i in range(YS_index.shape[0]):
+        Week = []
+        for j in range(YS_index.shape[1]):
+            index = YS_index[i, j]
+            Week.append(data[index-HISTORYDAY*DAYTIMESTEP:index:DAYTIMESTEP, :])
+        XS_Week.append(Week)
+    XS_Week = np.array(XS_Week)
+    YS_pred = np.mean(XS_Week, axis=2)
+    return YS_pred
+
+def testModel(name, mode, data, YS, YS_index):
+    print('TIMESTEP_IN, TIMESTEP_OUT', opt.his_len, opt.seq_len)
+    YS_pred = HistoricalAverage(data, YS_index)
+    print('YS.shape, YS_pred.shape,', YS.shape, YS_pred.shape)
     np.save(path + f'/{name}_prediction.npy', YS_pred)
     np.save(path + f'/{name}_groundtruth.npy', YS)
     MSE, RMSE, MAE, MAPE = Metrics.evaluate(YS, YS_pred)
-    logger.info('*' * 40)
+    print('*' * 40)
     f = open(path + f'/{name}_prediction_scores.txt', 'a')
-    logger.info("all pred steps, %s, %s, MSE, RMSE, MAE, MAPE, %.10f, %.10f, %.10f, %.10f" % (name, mode, MSE, RMSE, MAE, MAPE))
+    print("all pred steps, %s, %s, MSE, RMSE, MAE, MAPE, %.10f, %.10f, %.10f, %.10f" % (name, mode, MSE, RMSE, MAE, MAPE))
     f.write("all pred steps, %s, %s, MSE, RMSE, MAE, MAPE, %.10f, %.10f, %.10f, %.10f\n" % (name, mode, MSE, RMSE, MAE, MAPE))
     for i in range(opt.seq_len):
-        MSE, RMSE, MAE, MAPE = Metrics.evaluate(YS[:, i, ...], YS_pred[:, i, ...])
-        logger.info("%d step, %s, %s, MSE, RMSE, MAE, MAPE, %.10f, %.10f, %.10f, %.10f" % (i+1, name, mode, MSE, RMSE, MAE, MAPE))
+        MSE, RMSE, MAE, MAPE = Metrics.evaluate(YS[:, i, :], YS_pred[:, i, :])
+        print("%d step, %s, %s, MSE, RMSE, MAE, MAPE, %.10f, %.10f, %.10f, %.10f" % (i+1, name, mode, MSE, RMSE, MAE, MAPE))
         f.write("%d step, %s, %s, MSE, RMSE, MAE, MAPE, %.10f, %.10f, %.10f, %.10f\n" % (i+1, name, mode, MSE, RMSE, MAE, MAPE))
     f.close()
 
@@ -129,29 +143,23 @@ def main():
     onehottime = get_onehottime(target_start_date, target_end_date, freq)
     twitter = get_twitter(twitter_path, pref_path, target_start_date, target_end_date, target_area)
     adj = get_adj(adj_path, area_index) # it's already been normalized..
-    x, c, tw, adj = get_data(flow, onehottime, twitter, adj, num_variable, channel)
-    seq_x, seq_c, seq_tw, seq_adj = get_seq_data(x, opt.seq_len+opt.his_len), get_seq_data(c, opt.seq_len+opt.his_len), \
-                                    get_seq_data(tw, opt.seq_len+opt.his_len), get_seq_data(adj, opt.seq_len+opt.his_len)
-    logger.info(flow.shape, twitter.shape, onehottime.shape, adj.shape)
-    logger.info(x.shape, c.shape, tw.shape, adj.shape)
-    logger.info(seq_x.shape, seq_c.shape, seq_tw.shape, seq_adj.shape)
+    x, _, _, _ = get_data(flow, onehottime, twitter, adj, num_variable, channel)
     
-    his_x, seq_x = seq_x[:, :opt.his_len, ...], seq_x[:, -opt.seq_len:, ...]
-    his_c, seq_c = seq_c[:, :opt.his_len, ...], seq_c[:, -opt.seq_len:, ...] 
-    his_tw, seq_tw = seq_tw[:, :opt.his_len, ...], seq_tw[:, -opt.seq_len:, ...]
-    his_adj, seq_adj = seq_adj[:, :opt.his_len, ...], seq_adj[:, -opt.seq_len:, ...]
-    logger.info(his_x.shape, seq_x.shape, his_x.min(), his_x.max(), seq_x.min(), seq_x.max())
-    logger.info(his_c.shape, seq_c.shape, his_c.min(), his_c.max(), seq_c.min(), seq_c.max()) 
-    logger.info(his_tw.shape, seq_tw.shape, his_tw.min(), his_tw.max(), seq_tw.min(), seq_tw.max()) 
-    logger.info(his_adj.shape, seq_adj.shape, his_adj.min(), his_adj.max(), seq_adj.min(), seq_adj.max())
+    seq_x = get_seq_data(x, opt.seq_len+opt.his_len)
+    seq_x_idx = get_seq_data_idx(x, opt.seq_len+opt.his_len)
+    logger.info(flow.shape, x.shape, seq_x.shape, seq_x_idx.shape)
+    
+    seq_x = seq_x[:, -opt.seq_len:, ...]
+    seq_x_idx = seq_x_idx[:, -opt.seq_len:, ...]
+    logger.info(seq_x.shape, seq_x_idx.shape, seq_x.min(), seq_x.max())
     
     num_train_sample = int(seq_x.shape[0] * opt.trainval_ratio)
-    train_his_x, train_seq_x = his_x[:num_train_sample, ...], seq_x[:num_train_sample, ...]
-    test_his_x, test_seq_x = his_x[num_train_sample:, ...], seq_x[num_train_sample:, ...]
-    logger.info(train_his_x.shape, train_seq_x.shape, test_his_x.shape, test_seq_x.shape)
+    test_seq_x = seq_x[num_train_sample:, ...]
+    test_seq_x_idx = seq_x_idx[num_train_sample:, ...]
+    logger.info(test_seq_x.shape, test_seq_x_idx.shape)
     
     start = time.ctime()
-    testModel(model_name, 'test', test_his_x, test_seq_x)
+    testModel(model_name, 'test', x, test_seq_x, test_seq_x_idx)
     end = time.ctime()
     logger.info(event, flow_type, model_name, 'start and end time ...', start, end)
     
