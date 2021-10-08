@@ -1,0 +1,42 @@
+channel 1
+event covid
+flow_type outflow
+flow_path ../data/outflow_hour20180101_20210228.npy
+adj_path ../data/adjacency_matrix.npy
+twitter_path ../data/Japan_COVID-19_Total_tweet_count.csv
+pref_path ../data/Japan_prefectures.csv
+freq 1H
+flow_start_date 2018-01-01 00:00:00
+flow_end_date 2021-02-28 23:59:59
+twitter_start_date 2019-12-31 09:00:00
+twitter_end_date 2021-02-28 08:00:00
+target_start_date 2020-01-01 00:00:00
+target_end_date 2020-12-31 23:00:00
+target_area ['Fukushima', 'Ibaraki', 'Tochigi', 'Gunma', 'Saitama', 'Chiba', 'Tokyo', 'Kanagawa']
+model_name CopyLastSteps
+original flow data ... (8784, 8) 245.0 152098.0
+(8784, 8) (8784, 8) (8784, 32) (8784, 8, 8)
+(8784, 8, 1) (8784, 8, 32) (8784, 8, 1) (8784, 8, 8)
+(8761, 24, 8, 1) (8761, 24, 8, 32) (8761, 24, 8, 1) (8761, 24, 8, 8)
+(8761, 12, 8, 1) (8761, 12, 8, 1) 245.0 152098.0 245.0 152098.0
+(8761, 12, 8, 32) (8761, 12, 8, 32) 0 1 0 1
+(8761, 12, 8, 1) (8761, 12, 8, 1) 0 325 0 325
+(8761, 12, 8, 8) (8761, 12, 8, 8) 0.0 0.5 0.0 0.5
+(7008, 12, 8, 1) (7008, 12, 8, 1) (1753, 12, 8, 1) (1753, 12, 8, 1)
+TIMESTEP_IN, TIMESTEP_OUT 12 12
+YS.shape, YS_pred.shape, (1753, 12, 8, 1) (1753, 12, 8, 1)
+**************************************** 
+all pred steps, CopyLastSteps, test, MSE, RMSE, MAE, MAPE, 601061430.7930809259, 24516.5542194061, 18583.2800199658, 424.7493287703 
+1 step, CopyLastSteps, test, MSE, RMSE, MAE, MAPE, 600977543.1143753529, 24514.8433222482, 18582.9398174558, 424.5931033016 
+2 step, CopyLastSteps, test, MSE, RMSE, MAE, MAPE, 600978341.3312891722, 24514.8596025204, 18583.3645179692, 424.5923509792 
+3 step, CopyLastSteps, test, MSE, RMSE, MAE, MAPE, 601142220.0279520750, 24518.2018106539, 18586.1083856246, 424.5931543263 
+4 step, CopyLastSteps, test, MSE, RMSE, MAE, MAPE, 601321032.3923274279, 24521.8480623367, 18589.1119509412, 424.5937796250 
+5 step, CopyLastSteps, test, MSE, RMSE, MAE, MAPE, 601407592.3223046064, 24523.6129540960, 18590.6476041072, 424.5936239676 
+6 step, CopyLastSteps, test, MSE, RMSE, MAE, MAPE, 601275792.4069452286, 24520.9256025735, 18588.5338705077, 424.5922733993 
+7 step, CopyLastSteps, test, MSE, RMSE, MAE, MAPE, 600933758.0284512043, 24513.9502738431, 18581.4865231033, 424.5839518164 
+8 step, CopyLastSteps, test, MSE, RMSE, MAE, MAPE, 600850394.7716771364, 24512.2498920780, 18578.8484027382, 424.5793399943 
+9 step, CopyLastSteps, test, MSE, RMSE, MAE, MAPE, 600794438.9440958500, 24511.1084805256, 18576.0457786651, 424.5916691974 
+10 step, CopyLastSteps, test, MSE, RMSE, MAE, MAPE, 600798872.8879064322, 24511.1989279983, 18576.2688248716, 424.7098037324 
+11 step, CopyLastSteps, test, MSE, RMSE, MAE, MAPE, 601008655.5787222385, 24515.4778778371, 18580.8913291500, 425.0076179757 
+12 step, CopyLastSteps, test, MSE, RMSE, MAE, MAPE, 601248527.7109241486, 24520.3696487415, 18585.1132344552, 425.9612769290 
+covid outflow CopyLastSteps start and end time ... Fri Oct  8 12:01:52 2021 Fri Oct  8 12:01:53 2021

@@ -1,0 +1,21 @@
+channel 1
+event covid
+flow_type inflow
+flow_path ../data/inflow_hour20180101_20210228.npy
+adj_path ../data/adjacency_matrix.npy
+twitter_path ../data/Japan_COVID-19_Total_tweet_count.csv
+pref_path ../data/Japan_prefectures.csv
+freq 1H
+flow_start_date 2018-01-01 00:00:00
+flow_end_date 2021-02-28 23:59:59
+twitter_start_date 2019-12-31 09:00:00
+twitter_end_date 2021-02-28 08:00:00
+target_start_date 2020-01-01 00:00:00
+target_end_date 2020-12-31 23:00:00
+target_area ['Fukushima', 'Ibaraki', 'Tochigi', 'Gunma', 'Saitama', 'Chiba', 'Tokyo', 'Kanagawa']
+model_name HistoricalAverage
+original flow data ... (8784, 8) 244.0 146281.0
+(8784, 8) (8784, 8, 1) (8761, 24, 8, 1) (8761, 24)
+(8761, 12, 8, 1) (8761, 12) 244.0 146281.0
+(1753, 12, 8, 1) (1753, 12)
+covid inflow HistoricalAverage start and end time ... Fri Oct  8 12:03:34 2021 Fri Oct  8 12:03:34 2021

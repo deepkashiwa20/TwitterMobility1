@@ -1,0 +1,21 @@
+channel 1
+event typhoon
+flow_type inflow
+flow_path ../data/inflow_hour20180101_20210228.npy
+adj_path ../data/adjacency_matrix.npy
+twitter_path ../data/Japan_2019Hurricane_Total_tweet_count.csv
+pref_path ../data/Japan_prefectures.csv
+freq 1H
+flow_start_date 2018-01-01 00:00:00
+flow_end_date 2021-02-28 23:59:59
+twitter_start_date 2019-06-30 09:00:00
+twitter_end_date 2019-10-31 08:00:00
+target_start_date 2019-07-01 00:00:00
+target_end_date 2019-10-30 23:00:00
+target_area ['Fukushima', 'Ibaraki', 'Tochigi', 'Gunma', 'Saitama', 'Chiba', 'Tokyo', 'Kanagawa']
+model_name HistoricalAverage
+original flow data ... (2928, 8) 408.0 175854.0
+(2928, 8) (2928, 8, 1) (2905, 24, 8, 1) (2905, 24)
+(2905, 12, 8, 1) (2905, 12) 408.0 175854.0
+(581, 12, 8, 1) (581, 12)
+typhoon inflow HistoricalAverage start and end time ... Fri Oct  8 12:03:10 2021 Fri Oct  8 12:03:10 2021
