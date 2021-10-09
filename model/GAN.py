@@ -165,7 +165,12 @@ class Generator(nn.Module):
         self.num_block = num_block
         self.seq_len = seq_len
         self.num_variable = num_variable 
-        
+        # Building_Block(hidden_features, num_heads, dropout)
+        # Building_Block: hidden_features = num_variable * final_features 
+        self.linear = nn.Linear(final_features, final_features)
+        self.blocks = get_clones(Building_Block(num_variable * final_features, num_heads, dropout), self.num_block)
+        self.norm = Norm(num_variable * final_features)
+            
         self.DyConv1 = DyConv(init_features + cond_features, hidden_features)
         self.DyConv2 = DyConv(hidden_features, int(hidden_features / 2))
         self.DyConv3 = DyConv(int(hidden_features / 2), int(hidden_features / 4))
@@ -175,13 +180,6 @@ class Generator(nn.Module):
         self.bn2 = nn.BatchNorm1d(num_variable * final_features)
         self.bn3 = nn.BatchNorm1d(num_variable * final_features)
         self.bn4 = nn.BatchNorm1d(num_variable * final_features)
-        
-        # Building_Block(hidden_features, num_heads, dropout)
-        # Building_Block: hidden_features = num_variable * final_features 
-        self.blocks = get_clones(Building_Block(num_variable * final_features, num_heads, dropout), self.num_block)
-        
-        self.norm = Norm(num_variable * final_features)
-        self.linear = nn.Linear(final_features, final_features)
         
     def forward(self, x, adj, c):
         # input noise x <- (batch_size, sequence_length, pixel_num, init_features = 100 rand nums)
@@ -246,7 +244,12 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         self.num_block = num_block
         self.seq_len = seq_len
-        
+        # Building_Block(hidden_features, num_heads, dropout)
+        # Building_Block: hidden_features = num_variable * final_features 
+        self.linear = nn.Linear(num_variable * final_features, final_features)
+        self.blocks = get_clones(Building_Block(num_variable * final_features, num_heads, dropout), self.num_block) # should be equal to DyConv4 output
+        self.norm = Norm(num_variable * final_features)
+            
         self.DyConv1 = DyConv(init_features + cond_features, hidden_features)
         self.DyConv2 = DyConv(hidden_features, int(hidden_features * 2))
         self.DyConv3 = DyConv(int(hidden_features * 2), int(hidden_features * 4))
@@ -256,13 +259,6 @@ class Discriminator(nn.Module):
         self.bn2 = nn.BatchNorm1d(num_variable * final_features)
         self.bn3 = nn.BatchNorm1d(num_variable * final_features)
         self.bn4 = nn.BatchNorm1d(num_variable * final_features)
-        
-        # Building_Block(hidden_features, num_heads, dropout)
-        # Building_Block: hidden_features = num_variable * final_features 
-        self.blocks = get_clones(Building_Block(num_variable * final_features, num_heads, dropout), self.num_block) # should be equal to DyConv4 output
-        
-        self.norm = Norm(num_variable * final_features)
-        self.linear = nn.Linear(num_variable * final_features, final_features)
         
     def forward(self, x, adj, c):
         # input region x <- (batch_size, sequence_length, pixel_num, init_feature_num)
@@ -324,30 +320,32 @@ class Discriminator(nn.Module):
 
 def main():
     dropout = 0.1
-    num_head = 2
-    num_block = 3 # original N
-    num_variable = 8 # How many variables we want to predict, original pix_num 10*10=100.
+    num_head = 7
+    num_block_D = 2
+    num_block_G = 3
+    num_variable = 7 # How many variables we want to predict, original pix_num 10*10=100.
     final_feat = 1
     seq_len = 12
     D_init_feat = 1
     G_init_feat = 100
     D_hidden_feat = 16
     G_hidden_feat = 64
-    cond_feat = 34
+    cond_feat = 32
+    # cond_feat = 34
     # cond_sources = 2
     
     GPU = sys.argv[-1] if len(sys.argv) == 2 else '0'
     device = torch.device("cuda:{}".format(GPU)) if torch.cuda.is_available() else torch.device("cpu")
 
-    D = Discriminator(D_init_feat, cond_feat, D_hidden_feat, final_feat, num_head, dropout, num_block, num_variable, seq_len).to(device)
-    G = Generator(G_init_feat, cond_feat, G_hidden_feat, final_feat, num_head, dropout, num_block, num_variable, seq_len).to(device)
+    D = Discriminator(D_init_feat, cond_feat, D_hidden_feat, final_feat, num_head, dropout, num_block_D, num_variable, seq_len).to(device)
+    G = Generator(G_init_feat, cond_feat, G_hidden_feat, final_feat, num_head, dropout, num_block_G, num_variable, seq_len).to(device)
     adj = (seq_len, num_variable, num_variable)
     c = (seq_len, num_variable, cond_feat)
     D_x = (seq_len, num_variable, D_init_feat)
     G_x = (seq_len, num_variable, G_init_feat)
     
     print('########## This is the model summary of Descriminator ############')
-    summary(D, [D_x, adj, c])
+    # summary(D, [D_x, adj, c])
     print('########## This is the model summary of Generator ############')
     summary(G, [G_x, adj, c])
     

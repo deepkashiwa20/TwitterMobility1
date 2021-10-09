@@ -10,24 +10,16 @@ import logging
 import shutil
 import pandas as pd
 import numpy as np
-from Utils import get_pref_id, get_flow, get_adj, get_twitter, get_onehottime, get_data, get_seq_data
+from Utils import get_pref_id, get_flow, get_seq_data, getXSYS
 import Metrics
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--epoch", type=int, default=1000, help="number of epochs of training") # original 1500
-parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
-parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
-parser.add_argument('--seed', type=int, default=1234, help='Random seed.')
-parser.add_argument('--seq_len', type=int, default=12, help='sequence length of values, which should be even nums (2,4,6,12)')
-parser.add_argument('--his_len', type=int, default=12, help='sequence length of observed historical values')
 parser.add_argument('--trainval_ratio', type=float, default=0.8, help='the total ratio of training data and validation data')
 parser.add_argument('--val_ratio', type=float, default=0.2, help='the ratio of validation data among the trainval ratio')
-parser.add_argument('--gpu', type=int, default=3, help='which gpu to use')
+parser.add_argument('--seq_len', type=int, default=12, help='sequence length of values, which should be even nums (2,4,6,12)')
+parser.add_argument('--his_len', type=int, default=12, help='sequence length of observed historical values')
 parser.add_argument('--ex', type=str, default='typhoon-inflow-kanto8', help='which experiment setting to run') 
 # {'typhoon-inflow-kanto8', 'typhoon-outflow-kanto8', 'covid-inflow-kanto8', 'covid-outflow-kanto8'}
-# tw_condition, his_condition = False, False
-# parser.add_argument('--cond_feat', type=int, default=32 + sum([tw_condition, his_condition]), help='condition features of D and G')
-# parser.add_argument('--cond_source', type=int, default=sum([1, tw_condition, his_condition]), help='1 is only time label, 2 is his_x or twitter label, 3 is time, twitter, his')
 opt = parser.parse_args()
 
 config = ConfigParser()
@@ -94,15 +86,22 @@ logger.info('target_end_date', target_end_date)
 logger.info('target_area', target_area)
 logger.info('model_name', model_name)
 
-# device = torch.device("cuda:{}".format(opt.gpu)) if torch.cuda.is_available() else torch.device("cpu")
-# np.random.seed(opt.seed)
-# torch.manual_seed(opt.seed)
-# if torch.cuda.is_available():
-#    torch.cuda.manual_seed(opt.seed)
-
+########################### used by HistoricalAverage ########################
 def get_seq_data_idx(data, seq_len):
     seq_data_idx = [np.arange(i, i+seq_len) for i in range(0, data.shape[0]-seq_len+1)]
     return np.array(seq_data_idx)
+
+def getXSYS_idx(data, mode, his_len, seq_len, trainval_ratio):
+    seq_data = get_seq_data_idx(data, seq_len + his_len)
+    XS, YS = seq_data[:, :his_len, ...], seq_data[:, seq_len:, ...]
+    train_num = int(seq_data.shape[0] * trainval_ratio)
+    if mode == 'train':    
+        XS, YS = XS[:train_num, ...], YS[:train_num, ...]
+    elif mode == 'test':
+        XS, YS = XS[train_num:, ...], YS[train_num:, ...]    
+    else:
+        assert 'It should be either train or test'
+    return XS, YS
 
 def HistoricalAverage(data, YS_index):
     HISTORYDAY, DAYTIMESTEP = 7, 24
@@ -116,6 +115,7 @@ def HistoricalAverage(data, YS_index):
     XS_Week = np.array(XS_Week)
     YS_pred = np.mean(XS_Week, axis=2)
     return YS_pred
+########################### used by HistoricalAverage ########################
 
 def testModel(name, mode, data, YS, YS_index):
     print('TIMESTEP_IN, TIMESTEP_OUT', opt.his_len, opt.seq_len)
@@ -140,28 +140,12 @@ def main():
     area_index = get_pref_id(pref_path, target_area)
     flow = get_flow(flow_type, flow_path, start_index, end_index, area_index)
     logger.info('original flow data ...', flow.shape, flow.min(), flow.max())
-    onehottime = get_onehottime(target_start_date, target_end_date, freq)
-    twitter = get_twitter(twitter_path, pref_path, target_start_date, target_end_date, target_area)
-    adj = get_adj(adj_path, area_index) # it's already been normalized..
-    x, _, _, _ = get_data(flow, onehottime, twitter, adj, num_variable, channel)
     
-    seq_x = get_seq_data(x, opt.seq_len+opt.his_len)
-    seq_x_idx = get_seq_data_idx(x, opt.seq_len+opt.his_len)
-    logger.info(flow.shape, x.shape, seq_x.shape, seq_x_idx.shape)
-    
-    seq_x = seq_x[:, -opt.seq_len:, ...]
-    seq_x_idx = seq_x_idx[:, -opt.seq_len:, ...]
-    logger.info(seq_x.shape, seq_x_idx.shape, seq_x.min(), seq_x.max())
-    
-    num_train_sample = int(seq_x.shape[0] * opt.trainval_ratio)
-    test_seq_x = seq_x[num_train_sample:, ...]
-    test_seq_x_idx = seq_x_idx[num_train_sample:, ...]
-    logger.info(test_seq_x.shape, test_seq_x_idx.shape)
-    
-    start = time.ctime()
-    testModel(model_name, 'test', x, test_seq_x, test_seq_x_idx)
-    end = time.ctime()
-    logger.info(event, flow_type, model_name, 'start and end time ...', start, end)
+    _, testYS = getXSYS(flow, 'test', opt.his_len, opt.seq_len, opt.trainval_ratio)
+    _, testYS_idx = getXSYS_idx(flow, 'test', opt.his_len, opt.seq_len, opt.trainval_ratio)
+    testModel(model_name, 'test', flow, testYS, testYS_idx)
+
+    logger.info(event, flow_type, model_name, 'start and end time ...', time.ctime())
     
 if __name__ == '__main__':
     main()

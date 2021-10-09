@@ -37,23 +37,22 @@ def get_onehottime(start_date, end_date, freq):
     df_dummy = pd.concat([tmp1, tmp2, tmp3], axis=1)
     return df_dummy.values
 
+def sym_adj(adj):
+    """Symmetrically normalize adjacency matrix."""
+    adj = ss.coo_matrix(adj)
+    rowsum = np.array(adj.sum(1))
+    d_inv_sqrt = np.power(rowsum, -0.5).flatten()
+    d_inv_sqrt[np.isinf(d_inv_sqrt)] = 0.
+    d_mat_inv_sqrt = ss.diags(d_inv_sqrt)
+    return np.array(adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).astype(np.float32).todense())
+    
 def get_adj(adj_path, area_index):
-    def sym_adj(adj):
-        """Symmetrically normalize adjacency matrix."""
-        adj = ss.coo_matrix(adj)
-        rowsum = np.array(adj.sum(1))
-        d_inv_sqrt = np.power(rowsum, -0.5).flatten()
-        d_inv_sqrt[np.isinf(d_inv_sqrt)] = 0.
-        d_mat_inv_sqrt = ss.diags(d_inv_sqrt)
-        return np.array(adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).astype(np.float32).todense())
-
     adj = np.load(adj_path)
     adj_pad = np.zeros((adj.shape[0] + 1, adj.shape[1] + 1))
     adj_pad[:adj.shape[0], :adj.shape[1]] = adj
     np.fill_diagonal(adj_pad, 1)
     adj_pad = adj_pad[area_index, :][:, area_index]
-    sym_adj = sym_adj(adj_pad)
-    return sym_adj
+    return adj_pad
 
 def get_pref_id(pref_path, target_pref):
     jp_pref = pd.read_csv(pref_path, index_col=2)
@@ -61,22 +60,31 @@ def get_pref_id(pref_path, target_pref):
         return (jp_pref['prefecture_code'] - 1).values.tolist()
     else:
         return (jp_pref.loc[target_pref]['prefecture_code'] - 1).values.tolist()
-    
-# min-max normalization: x -> [-1,1]
-def min_max_normal(x):
-    max_x = x.max()
-    min_x = x.min()
-    x = (x - min_x) / (max_x - min_x)
-    x = 2.0*x - 1.0
-    return x # return x, min_x, max_x if we want to revert transform
-
-def get_data(x, cond, tw, adj, num_variable, channel):  
-    x = x[:, :, np.newaxis].repeat(channel, axis=2) # final_feat=channel=1
-    tw = tw[:, :, np.newaxis].repeat(channel, axis=2) # final_feat=channel=1
-    cond = cond[:, np.newaxis, ].repeat(num_variable, axis=1) # this is condition/label
-    adj = adj[np.newaxis, :, :].repeat(x.shape[0], axis=0)
-    return x, cond, tw, adj
 
 def get_seq_data(data, seq_len):
     seq_data = [data[i:i+seq_len, ...] for i in range(0, data.shape[0]-seq_len+1)]
     return np.array(seq_data)
+
+def getXSYS_single(data, mode, his_len, seq_len, trainval_ratio):
+    seq_data = get_seq_data(data, seq_len + his_len)
+    XS, YS = seq_data[:, :his_len, ...], seq_data[:, -seq_len:-seq_len+1, ...]
+    train_num = int(seq_data.shape[0] * trainval_ratio)
+    if mode == 'train':    
+        XS, YS = XS[:train_num, ...], YS[:train_num, ...]
+    elif mode == 'test':
+        XS, YS = XS[train_num:, ...], YS[train_num:, ...]    
+    else:
+        assert 'It should be either train or test'
+    return XS, YS
+
+def getXSYS(data, mode, his_len, seq_len, trainval_ratio):
+    seq_data = get_seq_data(data, seq_len + his_len)
+    XS, YS = seq_data[:, :his_len, ...], seq_data[:, seq_len:, ...]
+    train_num = int(seq_data.shape[0] * trainval_ratio)
+    if mode == 'train':    
+        XS, YS = XS[:train_num, ...], YS[:train_num, ...]
+    elif mode == 'test':
+        XS, YS = XS[train_num:, ...], YS[train_num:, ...]    
+    else:
+        assert 'It should be either train or test'
+    return XS, YS

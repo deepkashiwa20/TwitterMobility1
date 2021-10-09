@@ -15,8 +15,8 @@ import imageio
 import itertools
 import struct
 import argparse
-from GAN import Generator
-from GAN import Discriminator
+from configparser import ConfigParser
+import logging
 import seaborn as sns
 import time
 import sys
@@ -24,7 +24,10 @@ import shutil
 import pandas as pd
 import numpy as np
 from torchsummary import summary
-from Utils import get_pref_id, get_flow, get_adj, get_twitter, get_onehottime, get_data, get_seq_data
+from GAN import Generator
+from GAN import Discriminator
+from Utils import get_pref_id, get_flow, get_adj, get_twitter, get_onehottime, get_seq_data, sym_adj
+
 
 def show_loss_hist(hist, path):
     x = range(len(hist['D_losses_train']))
@@ -105,7 +108,7 @@ def traintest(D, G, x, y, adj, device):
             seq_adj = Variable(b_adj.to(device)).float()
             prob_real_seq_right_pair = D(real_seq, seq_adj, seq_label)
 
-            noise = torch.randn(num_seq, opt.seq_len * opt.init_dim * opt.num_variable).view(num_seq, opt.seq_len, opt.num_variable, opt.init_dim)
+            noise = torch.randn(num_seq, opt.seq_len * opt.init_dim * num_variable).view(num_seq, opt.seq_len, num_variable, opt.init_dim)
             noise = Variable(noise.to(device))  # randomly generate noise
 
             fake_seq = G(noise, seq_adj, seq_label)
@@ -126,14 +129,14 @@ def traintest(D, G, x, y, adj, device):
 
             ########################### Train Generator #############################
             opt_G.zero_grad()
-            noise2 = torch.randn(num_seq, opt.seq_len * opt.init_dim * opt.num_variable).view(num_seq, opt.seq_len, opt.num_variable, opt.init_dim)
+            noise2 = torch.randn(num_seq, opt.seq_len * opt.init_dim * num_variable).view(num_seq, opt.seq_len, num_variable, opt.init_dim)
             noise2 = Variable(noise2.to(device))
 
             # create random label
             y_real = Variable(torch.ones(num_seq).to(device))
             G_result = G(noise2, seq_adj, seq_label)
             D_result = D(G_result, seq_adj, seq_label).squeeze()
-            #print(BCE_loss(D_result, y_real), MAE_loss(G_result, real_seq))   # check magnitude
+            #logger.info(BCE_loss(D_result, y_real), MAE_loss(G_result, real_seq))   # check magnitude
             G_loss = BCE_loss(D_result, y_real)
             G_loss.backward()
             opt_G.step()
@@ -159,7 +162,7 @@ def traintest(D, G, x, y, adj, device):
                 seq_adj = Variable(b_adj.to(device)).float()
                 prob_real_seq_right_pair = D(real_seq, seq_adj, seq_label)
 
-                noise = torch.randn(num_seq, opt.seq_len * opt.init_dim * opt.num_variable).view(num_seq, opt.seq_len, opt.num_variable, opt.init_dim)
+                noise = torch.randn(num_seq, opt.seq_len * opt.init_dim * num_variable).view(num_seq, opt.seq_len, num_variable, opt.init_dim)
                 noise = Variable(noise.to(device))  # randomly generate noise
 
                 fake_seq = G(noise, seq_adj, seq_label)
@@ -178,7 +181,7 @@ def traintest(D, G, x, y, adj, device):
 
                 ########################### Test Generator #############################
                 opt_G.zero_grad()
-                noise2 = torch.randn(num_seq, opt.seq_len * opt.init_dim * opt.num_variable).view(num_seq, opt.seq_len, opt.num_variable, opt.init_dim)
+                noise2 = torch.randn(num_seq, opt.seq_len * opt.init_dim * num_variable).view(num_seq, opt.seq_len, num_variable, opt.init_dim)
                 noise2 = Variable(noise2.to(device))
 
                 # create random label
@@ -199,12 +202,12 @@ def traintest(D, G, x, y, adj, device):
         loss_hist['G_losses_test'].append(G_losses_test)
         loss_hist['RMSE_test'].append(rmse_test)
 
-        print('Epoch', epoch, time.ctime(), 'D_loss_train, G_loss_train, D_loss_test, G_loss_test, RMSE_test', D_losses_train, G_losses_train, D_losses_test, G_losses_test, rmse_test)
+        logger.info('Epoch', epoch, time.ctime(), 'D_loss_train, G_loss_train, D_loss_test, G_loss_test, RMSE_test', D_losses_train, G_losses_train, D_losses_test, G_losses_test, rmse_test)
 
         if (epoch + 1) % 10 == 0:
             truth = b_x.cpu().data.numpy()
             fake = fake_seq.cpu().data.numpy()
-            # print(fake.shape, truth.shape) # the last batch size 839%64=23
+            # logger.info(fake.shape, truth.shape) # the last batch size 839%64=23
             sns.set_style('darkgrid')
             fig, ax = plt.subplots(1, 2, tight_layout=True, figsize=(12, 5))
             ax[0].plot(fake[0, :, :, 0])
@@ -223,37 +226,40 @@ def traintest(D, G, x, y, adj, device):
     torch.save(G.state_dict(), f'{path}/G_params.pkl')  # save parameters
     torch.save(D.state_dict(), f'{path}/D_params.pkl')
 
-##############  Typhoon-Inflow ###############
-# event = 'Typhoon'
-# flow_type = 'inflow'
-# flow_path = f'../data/{flow_type}_hour20180101_20210228.npy'
-# adj_path = '../data/adjacency_matrix.npy'
-# twitter_path = '../data/Japan_2019Hurricane_Total_tweet_count.csv'
-# pref_path = '../data/Japan_prefectures.csv'
-# freq = '1H'
-# flow_start_date, flow_end_date = '2018-01-01 00:00:00', '2021-02-28 23:59:59'
-# twitter_start_date, twitter_end_date = '2019-06-30 09:00:00', '2019-10-31 08:00:00'
-# target_start_date, target_end_date = '2019-07-01 00:00:00', '2019-10-30 23:00:00' # 2019-10-31 data is missing.
-# target_area = ['Fukushima', 'Ibaraki', 'Tochigi', 'Gunma', 'Saitama', 'Chiba', 'Tokyo', 'Kanagawa']
-# # target_area_jp = ['福島県', '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県']
-# tw_condition, his_condition = True, True
-##############  Typhoon-Inflow ###############
 
-##############  COVID-Inflow ###############
-event = 'COVID'
-flow_type = 'inflow'
-flow_path = f'../data/{flow_type}_hour20180101_20210228.npy'
-adj_path = '../data/adjacency_matrix.npy'
-twitter_path = '../data/Japan_COVID-19_Total_tweet_count.csv'
-pref_path = '../data/Japan_prefectures.csv'
-freq = '1H'
-flow_start_date, flow_end_date = '2018-01-01 00:00:00', '2021-02-28 23:59:59'
-twitter_start_date, twitter_end_date = '2019-12-31 09:00:00', '2021-02-28 08:00:00'
-target_start_date, target_end_date = '2020-01-01 00:00:00', '2020-12-31 23:00:00' # 2019-10-31 data is missing.
-target_area = ['Fukushima', 'Ibaraki', 'Tochigi', 'Gunma', 'Saitama', 'Chiba', 'Tokyo', 'Kanagawa']
-# target_area_jp = ['福島県', '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県']
-tw_condition, his_condition = True, True
-##############  COVID-Inflow ###############
+##############################################################################################################################
+parser = argparse.ArgumentParser()
+parser.add_argument('--gpu', type=int, default=0, help='which gpu to use')
+parser.add_argument("--epoch", type=int, default=1000, help="number of epochs of training") # original 1500
+parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
+parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
+parser.add_argument('--trainval_ratio', type=float, default=0.8, help='the total ratio of training data and validation data')
+parser.add_argument('--val_ratio', type=float, default=0.25, help='the ratio of validation data among the trainval ratio')
+parser.add_argument("--beta1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
+parser.add_argument("--beta2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
+parser.add_argument("--adj_bar", type=float, default=0.47, help="adj bar")
+parser.add_argument('--seed', type=int, default=1234, help='Random seed.')
+parser.add_argument('--l2', type=float, default=0.1, help='l2 penalty')
+parser.add_argument('--dropout', type=float, default=0.1, help='dropout')
+parser.add_argument('--seq_len', type=int, default=12, help='sequence length of values, which should be even nums (2,4,6,12)')
+parser.add_argument('--his_len', type=int, default=12, help='sequence length of observed historical values')
+parser.add_argument('--num_head', type=int, default=7, help='number of heads in self-attention') # should be fully divided by num_variable
+#parser.add_argument('--num_block', type=int, default=2, help='repeating times of buiding block') # original 3
+parser.add_argument('--num_block_D', type=int, default=2, help='repeating times of buiding block for D') # original 3
+parser.add_argument('--num_block_G', type=int, default=3, help='repeating times of buiding block for G') # original 3
+parser.add_argument('--D_hidden_feat', type=int, default=16, help='hidden features of D')
+parser.add_argument('--G_hidden_feat', type=int, default=64, help='hidden features of G')
+parser.add_argument('--D_final_feat', type=int, default=1, help='output features of D')
+parser.add_argument('--G_final_feat', type=int, default=1, help='output features of G')
+parser.add_argument("--init_dim", type=int, default=100, help="dimensionality of the latent code")
+parser.add_argument('--D_init_feat', type=int, default=1, help='input features of D (only include init features)') # should be equal to G_final_feat, dummy variable to G_final_feat
+parser.add_argument('--G_init_feat', type=int, default=100, help='input features of G (include init features)')
+tw_condition, his_condition = False, False
+parser.add_argument('--cond_feat', type=int, default=32 + sum([tw_condition, his_condition]), help='condition features of D and G')
+parser.add_argument('--cond_source', type=int, default=sum([1, tw_condition, his_condition]), help='1 is only time label, 2 is his_x or twitter label, 3 is time, twitter, his')
+parser.add_argument('--ex', type=str, default='covid-inflow-kanto7', help='which experiment setting to run') 
+# {'typhoon-inflow-kanto8', 'typhoon-outflow-kanto8', 'covid-inflow-kanto8', 'covid-outflow-kanto8'}
+opt = parser.parse_args()
 
 condition_flag = 't'
 if tw_condition==False and his_condition==False:
@@ -265,71 +271,114 @@ elif tw_condition==False and his_condition==True:
 else:
     condition_flag += '-tw-his'
 
-model_name = 'GAN'
-path = f'./save/{event}_{flow_type}_{condition_flag}_{model_name}_' + time.strftime('%Y%m%d%H%M', time.localtime())
+config = ConfigParser()
+config.read('params_GAN.txt', encoding='UTF-8')
+exp = opt.ex
+channel = config.getint(exp, 'channel') # already in argument parser opt.
+event = config[exp]['event']
+flow_type = config[exp]['flow_type']
+flow_type = config[exp]['flow_type']
+flow_path = config[exp]['flow_path']
+adj_path = config[exp]['adj_path']
+twitter_path = config[exp]['twitter_path']
+pref_path = config[exp]['pref_path']
+freq = config[exp]['freq']
+flow_start_date = config[exp]['flow_start_date']
+flow_end_date = config[exp]['flow_end_date']
+twitter_start_date = config[exp]['twitter_start_date']
+twitter_end_date = config[exp]['twitter_end_date']
+target_start_date = config[exp]['target_start_date']
+target_end_date = config[exp]['target_end_date']
+target_area = eval(config[exp]['target_area'])
+num_variable = len(target_area) # already in argument parser opt.
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--epoch", type=int, default=2, help="number of epochs of training") # original 1500
-parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
-parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
-parser.add_argument("--beta1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
-parser.add_argument("--beta2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
-parser.add_argument("--adj_bar", type=float, default=0.47, help="adj bar")
-parser.add_argument('--seed', type=int, default=1234, help='Random seed.')
-parser.add_argument('--l2', type=float, default=0.1, help='l2 penalty')
-parser.add_argument('--dropout', type=float, default=0.1, help='dropout')
-parser.add_argument('--seq_len', type=int, default=12, help='sequence length of values, which should be even nums (2,4,6,12)')
-parser.add_argument('--his_len', type=int, default=12, help='sequence length of observed historical values')
-parser.add_argument('--num_head', type=int, default=len(target_area), help='number of heads in self-attention')
-#parser.add_argument('--num_block', type=int, default=2, help='repeating times of buiding block') # original 3
-parser.add_argument('--num_block_D', type=int, default=2, help='repeating times of buiding block for D') # original 3
-parser.add_argument('--num_block_G', type=int, default=3, help='repeating times of buiding block for G') # original 3
-parser.add_argument('--num_variable', type=int, default=len(target_area), help='total number of the target variables') # current 7
-parser.add_argument('--D_hidden_feat', type=int, default=16, help='hidden features of D')
-parser.add_argument('--G_hidden_feat', type=int, default=64, help='hidden features of G')
-parser.add_argument('--D_final_feat', type=int, default=1, help='output features of D')
-parser.add_argument('--G_final_feat', type=int, default=1, help='output features of G')
-parser.add_argument('--channel', type=int, default=1, help='channel') # should be equal to G_final_feat, dummy variable to G_final_feat
-parser.add_argument("--init_dim", type=int, default=100, help="dimensionality of the latent code")
-parser.add_argument('--D_init_feat', type=int, default=1, help='input features of D (only include init features)') # should be equal to G_final_feat, dummy variable to G_final_feat
-parser.add_argument('--G_init_feat', type=int, default=100, help='input features of G (include init features)')
-parser.add_argument('--cond_feat', type=int, default=32 + sum([tw_condition, his_condition]), help='condition features of D and G')
-parser.add_argument('--cond_source', type=int, default=sum([1, tw_condition, his_condition]), help='1 is only time label, 2 is his_x or twitter label, 3 is time, twitter, his')
-parser.add_argument('--trainval_ratio', type=float, default=0.8, help='the total ratio of training data and validation data')
-parser.add_argument('--val_ratio', type=float, default=0.2, help='the ratio of validation data among the trainval ratio')
-parser.add_argument('--gpu', type=int, default=3, help='which gpu to use')
-opt = parser.parse_args()
+_, filename = os.path.split(os.path.abspath(sys.argv[0]))
+filename = os.path.splitext(filename)[0]
+model_name = filename.split('_')[-1]
+path = f'./save/{exp}_{model_name}_{condition_flag}_head{opt.num_head}_' + time.strftime('%Y%m%d%H%M', time.localtime())
+logging_path = f'{path}/logging.txt'
+if not os.path.exists(path): os.makedirs(path)
+shutil.copy2(sys.argv[0], path)
+shutil.copy2(f'{model_name}.py', path)
 
-def main():
-    if not os.path.exists(path):
-        os.makedirs(path)
-    currentPython = sys.argv[0]
-    shutil.copy2(currentPython, path)
-    shutil.copy2('GAN.py', path)
-    
-    device = torch.device("cuda:{}".format(opt.gpu)) if torch.cuda.is_available() else torch.device("cpu")
-    np.random.seed(opt.seed)
-    torch.manual_seed(opt.seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(opt.seed)
-    
+logger = logging.getLogger(__name__)
+logger.setLevel(level = logging.INFO)
+class MyFormatter(logging.Formatter):
+    def format(self, record):
+        spliter = ' '
+        record.msg = str(record.msg) + spliter + spliter.join(map(str, record.args))
+        record.args = tuple() # set empty to args
+        return super().format(record)
+formatter = MyFormatter()
+handler = logging.FileHandler(logging_path, mode='a')
+handler.setLevel(logging.INFO)
+handler.setFormatter(formatter)
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+console.setFormatter(formatter)
+logger.addHandler(handler)
+logger.addHandler(console)
+
+logger.info('channel', channel)
+logger.info('event', event)
+logger.info('flow_type', flow_type)
+logger.info('flow_path', flow_path)
+logger.info('adj_path', adj_path)
+logger.info('twitter_path', twitter_path)
+logger.info('pref_path', pref_path)
+logger.info('freq', freq)
+logger.info('flow_start_date', flow_start_date)
+logger.info('flow_end_date', flow_end_date)
+logger.info('twitter_start_date', twitter_start_date)
+logger.info('twitter_end_date', twitter_end_date)
+logger.info('target_start_date', target_start_date)
+logger.info('target_end_date', target_end_date)
+logger.info('target_area', target_area)
+logger.info('model_name', model_name)
+
+device = torch.device("cuda:{}".format(opt.gpu)) if torch.cuda.is_available() else torch.device("cpu")
+np.random.seed(opt.seed)
+torch.manual_seed(opt.seed)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed(opt.seed)
+##########################################################################################################
+
+# min-max normalization: x -> [-1,1]
+def min_max_normal(x):
+    max_x = x.max()
+    min_x = x.min()
+    x = (x - min_x) / (max_x - min_x)
+    x = 2.0*x - 1.0
+    return x # return x, min_x, max_x if we want to revert transform
+
+def get_data(x, cond, tw, adj, num_variable, channel):  
+    x = min_max_normal(x)
+    x = x[:, :, np.newaxis].repeat(channel, axis=2) # final_feat=channel=1
+    tw = min_max_normal(tw)
+    tw = tw[:, :, np.newaxis].repeat(channel, axis=2) # final_feat=channel=1
+    cond = cond[:, np.newaxis].repeat(num_variable, axis=1) # this is condition/label
+    adj = sym_adj(adj)
+    adj = adj[np.newaxis, :, :].repeat(x.shape[0], axis=0)
+    return x, cond, tw, adj
+
+def main():   
     flow_all_times = [date.strftime('%Y-%m-%d %H:%M:%S') for date in pd.date_range(start=flow_start_date, end=flow_end_date, freq=freq)]
     start_index, end_index = flow_all_times.index(target_start_date), flow_all_times.index(target_end_date)
     area_index = get_pref_id(pref_path, target_area)
     flow = get_flow(flow_type, flow_path, start_index, end_index, area_index)
     onehottime = get_onehottime(target_start_date, target_end_date, freq)
     twitter = get_twitter(twitter_path, pref_path, target_start_date, target_end_date, target_area)
-    adj = get_adj(adj_path, area_index) # it's already been normalized..
-    x, c, tw, adj = get_data(flow, onehottime, twitter, adj, opt.num_variable, opt.channel)
+    adj = get_adj(adj_path, area_index)
+    x, c, tw, adj = get_data(flow, onehottime, twitter, adj, num_variable, channel)
     seq_x, seq_c, seq_tw, seq_adj = get_seq_data(x, opt.seq_len+opt.his_len), get_seq_data(c, opt.seq_len+opt.his_len), \
                                     get_seq_data(tw, opt.seq_len+opt.his_len), get_seq_data(adj, opt.seq_len+opt.his_len)
-    print(flow.shape, twitter.shape, onehottime.shape, adj.shape)
-    print(x.shape, c.shape, tw.shape, adj.shape)
-    print(seq_x.shape, seq_c.shape, seq_tw.shape, seq_adj.shape)
+    logger.info(flow.shape, twitter.shape, onehottime.shape, adj.shape)
+    logger.info(x.shape, c.shape, tw.shape, adj.shape)
+    logger.info(seq_x.shape, seq_c.shape, seq_tw.shape, seq_adj.shape)
     his_x, seq_x, seq_c, seq_tw, seq_adj = seq_x[:, :opt.his_len, ...], seq_x[:, -opt.seq_len:, ...], \
                                            seq_c[:, -opt.seq_len:, ...], seq_tw[:, -opt.seq_len:, ...], seq_adj[:, -opt.seq_len:, ...]
-    print(his_x.shape, seq_x.shape, seq_c.shape, seq_tw.shape, seq_adj.shape)
-    # print(his_x.min(), his_x.max(), seq_x.min(), seq_x.max(), seq_c.min(), seq_c.max(), seq_tw.min(), seq_tw.max(), seq_adj.min(), seq_adj.max())
+    logger.info(his_x.shape, seq_x.shape, seq_c.shape, seq_tw.shape, seq_adj.shape)
+    # logger.info(his_x.min(), his_x.max(), seq_x.min(), seq_x.max(), seq_c.min(), seq_c.max(), seq_tw.min(), seq_tw.max(), seq_adj.min(), seq_adj.max())
     
     if tw_condition==False and his_condition==False:
         pass
@@ -339,16 +388,26 @@ def main():
         seq_c = np.concatenate([seq_c, his_x], axis=-1)
     else:
         seq_c = np.concatenate([seq_c, seq_tw, his_x], axis=-1)
-    print(seq_x.shape, seq_c.shape, seq_adj.shape)
-    print('opt.cond_feat:', opt.cond_feat)
+    logger.info(seq_x.shape, seq_c.shape, seq_adj.shape)
+    logger.info('opt.cond_feat:', opt.cond_feat)
     
-    D = Discriminator(opt.D_init_feat, opt.cond_feat, opt.D_hidden_feat, opt.D_final_feat, opt.num_head, opt.dropout, opt.num_block_D, opt.num_variable, opt.seq_len).to(device)
-    G = Generator(opt.G_init_feat, opt.cond_feat, opt.G_hidden_feat, opt.G_final_feat, opt.num_head, opt.dropout, opt.num_block_G, opt.num_variable, opt.seq_len).to(device)
+    print(opt.D_init_feat + opt.cond_feat)
+    print(type(opt.D_init_feat + opt.cond_feat))
+    print(opt.G_init_feat + opt.cond_feat)
+    print(type(opt.G_init_feat + opt.cond_feat))
+    
+    D = Discriminator(opt.D_init_feat, opt.cond_feat, opt.D_hidden_feat, opt.D_final_feat, opt.num_head, opt.dropout, opt.num_block_D, num_variable, opt.seq_len).to(device)
+    G = Generator(opt.G_init_feat, opt.cond_feat, opt.G_hidden_feat, opt.G_final_feat, opt.num_head, opt.dropout, opt.num_block_G, num_variable, opt.seq_len).to(device)
+    
+    logger.info('########## This is the model summary of Descriminator ############')
+    # summary(D, [(opt.seq_len, num_variable, opt.D_init_feat), (opt.seq_len, num_variable, num_variable), (opt.seq_len, num_variable, opt.cond_feat)])
+    logger.info('########## This is the model summary of Generator ############')
+    # summary(G, [(opt.seq_len, num_variable, opt.G_init_feat), (opt.seq_len, num_variable, num_variable), (opt.seq_len, num_variable, opt.cond_feat)])
     
     start = time.ctime()
     traintest(D, G, seq_x, seq_c, seq_adj, device)
     end = time.ctime()
-    print('start and end time for total training process...', start, end)
+    logger.info('start and end time for total training process...', start, end)
     
 if __name__ == '__main__':
     main()
