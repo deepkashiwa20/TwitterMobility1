@@ -10,3 +10,12 @@
 * python CopyLastSteps.py --ex=typhoon-outflow-kanto8
 * python CopyLastSteps.py --ex=covid-inflow-kanto8
 * python CopyLastSteps.py --ex=covid-outflow-kanto8
+
+<br>
+
+* 2021/10/09 Updated
+* Utils.py
+* CopyLastSteps.py
+* HistoricalAverage.py
+* STGCN.py
+* traintest_STGCN.py
