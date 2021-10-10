@@ -19,3 +19,5 @@
 * HistoricalAverage.py
 * STGCN.py
 * traintest_STGCN.py
+* GraphWaveNet.py
+* traintest_GraphWaveNet.py
