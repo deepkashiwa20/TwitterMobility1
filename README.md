@@ -21,3 +21,16 @@
 * traintest_STGCN.py
 * GraphWaveNet.py
 * traintest_GraphWaveNet.py
+* DCRNN.py
+* traintest_DCRNN.py
+* TGCN.py
+* traintest_TGCN.py
+* LSTNet.py
+* traintest_LSTNet.py
+* MTGNN.py
+* traintest_MTGNN.py
+* AGCRN.py
+* traintest_AGCRN.py
+* GMAN.py
+* traintest_GMAN.py
+
