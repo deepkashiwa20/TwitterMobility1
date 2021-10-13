@@ -79,7 +79,7 @@ def getXSYS_single(data, mode, his_len, seq_len, trainval_ratio):
 
 def getXSYS(data, mode, his_len, seq_len, trainval_ratio):
     seq_data = get_seq_data(data, seq_len + his_len)
-    XS, YS = seq_data[:, :his_len, ...], seq_data[:, seq_len:, ...]
+    XS, YS = seq_data[:, :his_len, ...], seq_data[:, -seq_len:, ...]
     train_num = int(seq_data.shape[0] * trainval_ratio)
     if mode == 'train':    
         XS, YS = XS[:train_num, ...], YS[:train_num, ...]
