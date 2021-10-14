@@ -14,13 +14,14 @@
 <br>
 
 * CopyLastSteps.py
+* CopyYesterday.py
 * HistoricalAverage.py
 * traintest_STGCN.py
 * traintest_DCRNN.py
 * traintest_GraphWaveNet.py
 * traintest_ASTGCN.py
 * traintest_TGCN.py
+* traintest_LSTNet.py
 * traintest_GMAN.py
 * traintest_AGCRN.py
 * traintest_MTGNN.py
-* traintest_LSTNet.py
