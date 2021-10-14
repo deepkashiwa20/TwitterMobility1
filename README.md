@@ -13,20 +13,8 @@
 
 <br>
 
-* 2021/10/09 Updated
-* Utils.py
 * CopyLastSteps.py
 * HistoricalAverage.py
-* STGCN.py
-* DCRNN.py
-* GraphWaveNet.py
-* ASTGCN
-* TGCN.py
-* LSTNet.py
-* MTGNN.py
-* AGCRN.py
-* GMAN.py
-
 * traintest_STGCN.py
 * traintest_DCRNN.py
 * traintest_GraphWaveNet.py
