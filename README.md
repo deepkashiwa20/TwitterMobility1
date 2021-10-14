@@ -23,5 +23,6 @@
 * traintest_TGCN.py
 * traintest_LSTNet.py
 * traintest_GMAN.py
-* traintest_AGCRN.py
 * traintest_MTGNN.py
+* traintest_AGCRN.py
+
