@@ -18,8 +18,9 @@
 * CopyLastSteps.py
 * HistoricalAverage.py
 * STGCN.py
-* GraphWaveNet.py
 * DCRNN.py
+* GraphWaveNet.py
+* ASTGCN
 * TGCN.py
 * LSTNet.py
 * MTGNN.py
@@ -27,9 +28,10 @@
 * GMAN.py
 
 * traintest_STGCN.py
-* traintest_GraphWaveNet.py
-* traintest_TGCN.py
 * traintest_DCRNN.py
+* traintest_GraphWaveNet.py
+* traintest_ASTGCN.py
+* traintest_TGCN.py
 * traintest_GMAN.py
 * traintest_AGCRN.py
 * traintest_MTGNN.py
