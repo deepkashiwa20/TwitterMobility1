@@ -25,4 +25,5 @@
 * traintest_GMAN.py
 * traintest_MTGNN.py
 * traintest_AGCRN.py
+* traintest_Transformer.py
 
