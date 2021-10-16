@@ -37,6 +37,11 @@ def get_onehottime(start_date, end_date, freq):
     df_dummy = pd.concat([tmp1, tmp2, tmp3], axis=1)
     return df_dummy.values
 
+def get_floatdaytime(start_date, end_date, freq):
+    timeindex = pd.date_range(start_date, end_date, freq=freq)
+    time_in_day = (timeindex.values - timeindex.values.astype("datetime64[D]")) / np.timedelta64(1, "D")
+    return time_in_day
+
 def sym_adj(adj):
     """Symmetrically normalize adjacency matrix."""
     adj = ss.coo_matrix(adj)
