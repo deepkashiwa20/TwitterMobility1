@@ -6,10 +6,12 @@
 <br>
 
 * cd model
-* python CopyLastSteps.py --ex=typhoon-inflow-kanto8
-* python CopyLastSteps.py --ex=typhoon-outflow-kanto8
-* python CopyLastSteps.py --ex=covid-inflow-kanto8
-* python CopyLastSteps.py --ex=covid-outflow-kanto8
+* python traintest_MODELNAME.py --ex=EXPERIMENT --gpu=GPU_ID
+* EXPERIMENT = {typhoon-inflow, typhoon-outflow, covid-inflow, covid-outflow}
+
+* cd model+tw
+* python traintest_MODELNAME.py --ex=EXPERIMENT --gpu=GPU_ID
+* EXPERIMENT = {typhoon-inflow, typhoon-outflow, covid-inflow, covid-outflow}
 
 <br>
 
