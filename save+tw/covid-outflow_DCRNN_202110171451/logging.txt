@@ -1,0 +1,70 @@
+event covid
+flow_type outflow
+flow_path ../data/outflow_hour20180101_20210228.npy
+adj_path ../data/adjacency_matrix.npy
+twitter_path ../data/Japan_COVID-19_Total_tweet_count.csv
+pref_path ../data/Japan_prefectures.csv
+freq 1H
+flow_start_date 2018-01-01 00:00:00
+flow_end_date 2021-02-28 23:59:59
+twitter_start_date 2019-12-31 09:00:00
+twitter_end_date 2021-02-28 08:00:00
+target_start_date 2020-01-01 00:00:00
+target_end_date 2020-12-31 23:00:00
+target_area ['Hokkaido', 'Aomori', 'Iwate', 'Miyagi', 'Akita', 'Yamagata', 'Fukushima', 'Ibaraki', 'Tochigi', 'Gunma', 'Saitama', 'Chiba', 'Tokyo', 'Kanagawa', 'Niigata', 'Toyama', 'Ishikawa', 'Fukui', 'Yamanashi', 'Nagano', 'Gifu', 'Shizuoka', 'Aichi', 'Mie', 'Shiga', 'Kyoto', 'Osaka', 'Hyogo', 'Nara', 'Wakayama', 'Tottori', 'Shimane', 'Okayama', 'Hiroshima', 'Yamaguchi', 'Tokushima', 'Kagawa', 'Ehime', 'Kochi', 'Fukuoka', 'Saga', 'Nagasaki', 'Kumamoto', 'Oita', 'Miyazaki', 'Kagoshima', 'Okinawa']
+model_name DCRNN
+flow.shape, twitter.shape (8784, 47) -1.3975351903679236 3.6590076044783633 (8784, 47) -1.0 1.0
+covid-outflow training started Sun Oct 17 14:51:12 2021
+TRAIN XS.shape YS,shape (7008, 12, 47, 2) (7008, 12, 47, 1)
+Model Training Started ... Sun Oct 17 14:51:13 2021
+TIMESTEP_IN, TIMESTEP_OUT 12 12
+XS_torch.shape:   torch.Size([7008, 12, 47, 2])
+YS_torch.shape:   torch.Size([7008, 12, 47, 1])
+epoch 0 time used: 16  seconds  train loss: 0.35683197354617185 validation loss: 0.2334024662568689
+epoch 1 time used: 16  seconds  train loss: 0.24113136827038484 validation loss: 0.1980699095960077
+epoch 2 time used: 16  seconds  train loss: 0.2120258155388012 validation loss: 0.20443512145514903
+epoch 3 time used: 16  seconds  train loss: 0.19333583123335554 validation loss: 0.15144553113745773
+epoch 4 time used: 16  seconds  train loss: 0.1710915054950177 validation loss: 0.1511567626913933
+epoch 5 time used: 16  seconds  train loss: 0.16082502477426688 validation loss: 0.1557156010849835
+epoch 6 time used: 16  seconds  train loss: 0.1647713494854249 validation loss: 0.1298879548975322
+epoch 7 time used: 16  seconds  train loss: 0.15190249207448017 validation loss: 0.1390421412987252
+epoch 8 time used: 16  seconds  train loss: 0.14683461933194047 validation loss: 0.135119513765862
+epoch 9 time used: 16  seconds  train loss: 0.14487154691095946 validation loss: 0.11639076709475148
+epoch 10 time used: 16  seconds  train loss: 0.14149532792593608 validation loss: 0.1315255450875792
+epoch 11 time used: 16  seconds  train loss: 0.1427438470734853 validation loss: 0.1844379948154432
+epoch 12 time used: 16  seconds  train loss: 0.13811351494974197 validation loss: 0.12008086299379123
+epoch 13 time used: 16  seconds  train loss: 0.13295849054326023 validation loss: 0.12333580599800092
+epoch 14 time used: 16  seconds  train loss: 0.13425455724358376 validation loss: 0.1307444025732611
+epoch 15 time used: 16  seconds  train loss: 0.13139197795086255 validation loss: 0.12191386980144944
+epoch 16 time used: 16  seconds  train loss: 0.1294441688777468 validation loss: 0.1267882230006941
+epoch 17 time used: 16  seconds  train loss: 0.13110004900706596 validation loss: 0.11966374570920588
+epoch 18 time used: 16  seconds  train loss: 0.13026051325340793 validation loss: 0.13094951178385242
+Early stopping at epoch: 19 
+YS.shape, YS_pred.shape, (7008, 12, 47, 1) (7008, 12, 47, 1)
+YS.shape, YS_pred.shape, (7008, 12, 47) (7008, 12, 47)
+**************************************** 
+DCRNN, train, Torch MSE, 1.4237799778e-01, 0.1423779978 
+DCRNN, train, MSE, RMSE, MAE, MAPE, 5160512.1371054174, 2271.6760634178, 793.6770224689, 13.8884357322 
+Model Training Ended ... Sun Oct 17 14:56:54 2021
+covid-outflow testing started Sun Oct 17 14:56:54 2021
+TEST XS.shape, YS.shape (1753, 12, 47, 2) (1753, 12, 47, 1)
+Model Testing Started ... Sun Oct 17 14:56:54 2021
+TIMESTEP_IN, TIMESTEP_OUT 12 12
+YS.shape, YS_pred.shape, (1753, 12, 47, 1) (1753, 12, 47, 1)
+YS.shape, YS_pred.shape, (1753, 12, 47) (1753, 12, 47)
+**************************************** 
+DCRNN, test, Torch MSE, 1.2972333621e-01, 0.1297233362 
+all pred steps, DCRNN, test, MSE, RMSE, MAE, MAPE, 3678112.1483323649, 1917.8404908470, 713.9518366643, 13.2830132959 
+1 step, DCRNN, test, MSE, RMSE, MAE, MAPE, 1296438.9338320564, 1138.6127233753, 422.2322886062, 8.3681511440 
+2 step, DCRNN, test, MSE, RMSE, MAE, MAPE, 2114893.4053654131, 1454.2673087728, 556.4508220372, 10.7225404400 
+3 step, DCRNN, test, MSE, RMSE, MAE, MAPE, 2786962.8581108772, 1669.4199166510, 646.8004587181, 12.4426721395 
+4 step, DCRNN, test, MSE, RMSE, MAE, MAPE, 3762157.2055590716, 1939.6281101178, 729.8868520803, 13.8643863023 
+5 step, DCRNN, test, MSE, RMSE, MAE, MAPE, 4423193.2192162089, 2103.1388967960, 773.6163533329, 14.3791324797 
+6 step, DCRNN, test, MSE, RMSE, MAE, MAPE, 4427720.6821882911, 2104.2149800313, 777.1463310190, 14.6363965393 
+7 step, DCRNN, test, MSE, RMSE, MAE, MAPE, 4305568.6336791199, 2074.9864177096, 780.0718611784, 15.3116903302 
+8 step, DCRNN, test, MSE, RMSE, MAE, MAPE, 4280416.1125268377, 2068.9166519043, 770.7053986723, 14.9414467677 
+9 step, DCRNN, test, MSE, RMSE, MAE, MAPE, 4206088.5105996067, 2050.8750597244, 758.2718526947, 14.0515035456 
+10 step, DCRNN, test, MSE, RMSE, MAE, MAPE, 3982318.8681968991, 1995.5748214980, 761.5255410634, 13.5923400827 
+11 step, DCRNN, test, MSE, RMSE, MAE, MAPE, 4221110.2149024606, 2054.5340627263, 786.8546427121, 13.4166050709 
+12 step, DCRNN, test, MSE, RMSE, MAE, MAPE, 4330477.1358115328, 2080.9798499292, 803.8596378573, 13.6692947094 
+Model Testing Ended ... Sun Oct 17 14:56:58 2021
