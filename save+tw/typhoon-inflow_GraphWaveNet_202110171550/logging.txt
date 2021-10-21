@@ -1,0 +1,96 @@
+event typhoon
+flow_type inflow
+flow_path ../data/inflow_hour20180101_20210228.npy
+adj_path ../data/adjacency_matrix.npy
+twitter_path ../data/Japan_2019Hurricane_Total_tweet_count.csv
+pref_path ../data/Japan_prefectures.csv
+freq 1H
+flow_start_date 2018-01-01 00:00:00
+flow_end_date 2021-02-28 23:59:59
+twitter_start_date 2019-06-30 09:00:00
+twitter_end_date 2019-10-31 08:00:00
+target_start_date 2019-07-01 00:00:00
+target_end_date 2019-10-30 23:00:00
+target_area ['Hokkaido', 'Aomori', 'Iwate', 'Miyagi', 'Akita', 'Yamagata', 'Fukushima', 'Ibaraki', 'Tochigi', 'Gunma', 'Saitama', 'Chiba', 'Tokyo', 'Kanagawa', 'Niigata', 'Toyama', 'Ishikawa', 'Fukui', 'Yamanashi', 'Nagano', 'Gifu', 'Shizuoka', 'Aichi', 'Mie', 'Shiga', 'Kyoto', 'Osaka', 'Hyogo', 'Nara', 'Wakayama', 'Tottori', 'Shimane', 'Okayama', 'Hiroshima', 'Yamaguchi', 'Tokushima', 'Kagawa', 'Ehime', 'Kochi', 'Fukuoka', 'Saga', 'Nagasaki', 'Kumamoto', 'Oita', 'Miyazaki', 'Kagoshima', 'Okinawa']
+model_name GraphWaveNet
+flow.shape, twitter.shape (2928, 47) -1.454277567115581 2.19721081237935 (2928, 47) -1.0 1.0
+typhoon-inflow training started Sun Oct 17 15:50:37 2021
+TRAIN XS.shape YS,shape (2324, 2, 47, 12) (2324, 12, 47, 1)
+Model Training Started ... Sun Oct 17 15:50:37 2021
+TIMESTEP_IN, TIMESTEP_OUT 12 12
+XS_torch.shape:   torch.Size([2324, 2, 47, 12])
+YS_torch.shape:   torch.Size([2324, 12, 47, 1])
+epoch 0 time used: 3  seconds  train loss: 0.4768133882093348 validation loss: 0.34235523105078025
+epoch 1 time used: 2  seconds  train loss: 0.2398735954203417 validation loss: 0.23582301349114634
+epoch 2 time used: 3  seconds  train loss: 0.20072782372204107 validation loss: 0.22255296915410513
+epoch 3 time used: 3  seconds  train loss: 0.1800182510554209 validation loss: 0.20975082704922418
+epoch 4 time used: 3  seconds  train loss: 0.1725162342575454 validation loss: 0.19362832518637488
+epoch 5 time used: 3  seconds  train loss: 0.15470681504928308 validation loss: 0.19854634107698058
+epoch 6 time used: 3  seconds  train loss: 0.15259593467020263 validation loss: 0.19133492068046137
+epoch 7 time used: 3  seconds  train loss: 0.14447486639125418 validation loss: 0.15726491547287433
+epoch 8 time used: 3  seconds  train loss: 0.1322917845730664 validation loss: 0.1641352979687528
+epoch 9 time used: 4  seconds  train loss: 0.1303977766258581 validation loss: 0.17567733832973212
+epoch 10 time used: 3  seconds  train loss: 0.13241694573520316 validation loss: 0.1541824040232345
+epoch 11 time used: 3  seconds  train loss: 0.12810248319472106 validation loss: 0.1486695968191718
+epoch 12 time used: 3  seconds  train loss: 0.12312610396966808 validation loss: 0.1607198538242642
+epoch 13 time used: 3  seconds  train loss: 0.11932295324880367 validation loss: 0.16289616067109952
+epoch 14 time used: 3  seconds  train loss: 0.11158281122721685 validation loss: 0.14516352376100733
+epoch 15 time used: 3  seconds  train loss: 0.11205690147646938 validation loss: 0.13652021880301674
+epoch 16 time used: 3  seconds  train loss: 0.10994385427363085 validation loss: 0.13436794216887266
+epoch 17 time used: 3  seconds  train loss: 0.10394777309275603 validation loss: 0.13817472884146154
+epoch 18 time used: 3  seconds  train loss: 0.10352168663506937 validation loss: 0.1321834922349802
+epoch 19 time used: 3  seconds  train loss: 0.09770715403372163 validation loss: 0.15277688202677414
+epoch 20 time used: 3  seconds  train loss: 0.1017200611595853 validation loss: 0.13586580499416784
+epoch 21 time used: 3  seconds  train loss: 0.09336371354361205 validation loss: 0.120253206504807
+epoch 22 time used: 3  seconds  train loss: 0.09575265230919805 validation loss: 0.15770747321505554
+epoch 23 time used: 3  seconds  train loss: 0.09729668925496537 validation loss: 0.138200790587678
+epoch 24 time used: 3  seconds  train loss: 0.0882887681171392 validation loss: 0.1197061982396958
+epoch 25 time used: 3  seconds  train loss: 0.09304018666175885 validation loss: 0.1402622411562941
+epoch 26 time used: 3  seconds  train loss: 0.08596010946434117 validation loss: 0.13623091875993856
+epoch 27 time used: 3  seconds  train loss: 0.09483184259784543 validation loss: 0.12069038154233548
+epoch 28 time used: 3  seconds  train loss: 0.09191395066640053 validation loss: 0.14479117268590633
+epoch 29 time used: 3  seconds  train loss: 0.09112130081557844 validation loss: 0.14467727794294308
+epoch 30 time used: 3  seconds  train loss: 0.08279985829341432 validation loss: 0.11857384994702988
+epoch 31 time used: 3  seconds  train loss: 0.08137573580494299 validation loss: 0.11343041475278785
+epoch 32 time used: 3  seconds  train loss: 0.08184966792491956 validation loss: 0.1272057887044913
+epoch 33 time used: 3  seconds  train loss: 0.08041960475469415 validation loss: 0.11482356475880963
+epoch 34 time used: 3  seconds  train loss: 0.07748594269267595 validation loss: 0.12746040317872714
+epoch 35 time used: 3  seconds  train loss: 0.08509347276207502 validation loss: 0.10999327228627394
+epoch 36 time used: 3  seconds  train loss: 0.07962530848799391 validation loss: 0.12960101213953787
+epoch 37 time used: 3  seconds  train loss: 0.08438513361716914 validation loss: 0.12524282891245594
+epoch 38 time used: 3  seconds  train loss: 0.08406479814855518 validation loss: 0.1156246230365282
+epoch 39 time used: 3  seconds  train loss: 0.07799197932169893 validation loss: 0.1278235617633941
+epoch 40 time used: 3  seconds  train loss: 0.08116091858345548 validation loss: 0.13586675564208664
+epoch 41 time used: 3  seconds  train loss: 0.08111958949475609 validation loss: 0.11790925395160452
+epoch 42 time used: 3  seconds  train loss: 0.08085870897537391 validation loss: 0.11111031854829771
+epoch 43 time used: 3  seconds  train loss: 0.08163118278645129 validation loss: 0.11012378422200372
+epoch 44 time used: 3  seconds  train loss: 0.07784750314276587 validation loss: 0.11698864918465048
+Early stopping at epoch: 45 
+YS.shape, YS_pred.shape, (2324, 12, 47, 1) (2324, 12, 47, 1)
+YS.shape, YS_pred.shape, (2324, 12, 47) (2324, 12, 47)
+**************************************** 
+GraphWaveNet, train, Torch MSE, 9.1585865461e-02, 0.0915858655 
+GraphWaveNet, train, MSE, RMSE, MAE, MAPE, 4685840.9125112602, 2164.6803257089, 784.9257280620, 13.0762483890 
+Model Training Ended ... Sun Oct 17 15:53:09 2021
+typhoon-inflow testing started Sun Oct 17 15:53:09 2021
+TEST XS.shape, YS.shape (581, 2, 47, 12) (581, 12, 47, 1)
+Model Testing Started ... Sun Oct 17 15:53:09 2021
+TIMESTEP_IN, TIMESTEP_OUT 12 12
+YS.shape, YS_pred.shape, (581, 12, 47, 1) (581, 12, 47, 1)
+YS.shape, YS_pred.shape, (581, 12, 47) (581, 12, 47)
+**************************************** 
+GraphWaveNet, test, Torch MSE, 1.2524463933e-01, 0.1252446393 
+all pred steps, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 11990484.5366403628, 3462.7279039278, 1107.5780186968, 15.1053194047 
+1 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 1986690.5394886271, 1409.5001026920, 562.7058034564, 10.6369939291 
+2 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 4405863.5701049035, 2099.0149046886, 769.9515755001, 12.8916424636 
+3 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 7323367.0494875796, 2706.1720288052, 939.4280840755, 13.1179720044 
+4 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 9968030.9873699453, 3157.2188690951, 1026.8163167124, 12.8894940929 
+5 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 11450235.0814165436, 3383.8195994196, 1127.1300321203, 15.0223122115 
+6 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 11240996.0249015018, 3352.7594642177, 1105.5356088039, 13.2176623523 
+7 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 12216101.6032750122, 3495.1540171035, 1168.0269357068, 15.3292792547 
+8 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 13356667.4455659278, 3654.6774749034, 1179.0344355282, 16.1662951105 
+9 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 13999990.4939326979, 3741.6561164720, 1170.0218083581, 15.3832654664 
+10 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 15518592.4942752048, 3939.3644784756, 1239.2943390057, 17.1222817668 
+11 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 19189560.1008652151, 4380.5890130056, 1427.3426136883, 19.3765709574 
+12 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 23229719.0490012243, 4819.7218850263, 1575.6486714063, 20.1100632467 
+Model Testing Ended ... Sun Oct 17 15:53:11 2021
