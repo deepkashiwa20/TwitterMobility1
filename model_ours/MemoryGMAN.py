@@ -652,32 +652,63 @@ class MetaSTEmbedding(nn.Module):
     return: [batch_size, num_his + num_pred, num_vertex, D]
     """
 
-    def __init__(self, SE_dim, TE_dim, D, bn_decay, device):
+    def __init__(self, N, SE_dim, TE_dim, D, bn_decay, device, mem_num:int=5, mem_dim:int=8):
         super(MetaSTEmbedding, self).__init__()
+        self.N = N
+        self.D = D
         self.SE_dim = SE_dim
         self.TE_dim = TE_dim
-        self.D = D
         self.device = device
-        self.tw2se_W = nn.Sequential(nn.Linear(D, D), nn.ReLU(), nn.Linear(D, SE_dim*D))
+        self.tw2se_W = nn.Sequential(nn.Linear(D, D), nn.ReLU(), nn.Linear(D, SE_dim*D))    # todo: + BN
         self.tw2se_b = nn.Sequential(nn.Linear(D, D), nn.ReLU(), nn.Linear(D, D))
         self.tw2te_W = nn.Sequential(nn.Linear(D, D), nn.ReLU(), nn.Linear(D, TE_dim*D))
         self.tw2te_b = nn.Sequential(nn.Linear(D, D), nn.ReLU(), nn.Linear(D, D))
+        # memory use
+        self.mem_num = mem_num
+        self.mem_dim = mem_dim
+        self.tw_memory = self.construct_tw_memory()
 
-    def forward(self, TW, SE, TE):
-        TW = TW[:,-1]   # last hidden state
-        B, N, _ = TW.shape
-        se_W, se_b = self.tw2se_W(TW).reshape(B, N, self.SE_dim, self.D), self.tw2se_b(TW)
-        metaSE = torch.einsum('ne,bned->bnd', SE, se_W) + se_b
-        te_W, te_b = self.tw2te_W(TW).reshape(B, N, self.TE_dim, self.D), self.tw2te_b(TW).unsqueeze(1)
-        metaTE = torch.einsum('bte,bned->btnd', TE.to(device=self.device), te_W) + te_b
-        metaSTE = metaSE.unsqueeze(1) + metaTE
+    def construct_tw_memory(self):      # local
+        memory_dict = nn.ParameterDict()
+        memory_dict['Memory'] = nn.Parameter(torch.randn(self.N, self.mem_num, self.mem_dim), requires_grad=True)     # (M, d)
+        memory_dict['Wq'] = nn.Parameter(torch.randn(self.D, self.mem_dim), requires_grad=True)    # project to query
+        memory_dict['FC_SE'] = nn.Parameter(torch.randn(self.mem_dim, self.SE_dim*self.D), requires_grad=True)
+        memory_dict['FC_TE'] = nn.Parameter(torch.randn(self.mem_dim, self.TE_dim*self.D), requires_grad=True)
+        for param in memory_dict.values():
+            nn.init.xavier_normal_(param)
+        return memory_dict
+
+    def query_tw_memory(self, TW_t:Tensor):
+        assert len(TW_t.shape) == 3, 'Input to query ST-Memory must be a 3D tensor'
+        B = TW_t.shape[0]
+
+        query = torch.einsum('bnh,hd->bnd', TW_t, self.tw_memory['Wq'])     # (B, N, d)
+        att_score = torch.softmax(torch.einsum('bnd,nmd->bnm', query, self.tw_memory['Memory']), dim=-1)    # alpha: (B, N, M)
+        proto_t = torch.einsum('bnm,nmd->bnd', att_score, self.tw_memory['Memory'])     # (B, N, d)
+
+        Wse = torch.matmul(proto_t, self.tw_memory['FC_SE'])    # (B, N, emb*d)
+        Wte = torch.matmul(proto_t, self.tw_memory['FC_TE'])    # (B, N, emb*d)
+        Wse, Wte = Wse.reshape(B, self.N, self.SE_dim, self.D), Wte.reshape(B, self.N, self.TE_dim, self.D)
+        return Wse, Wte
+
+    def forward(self, TW, SE, TE):      # direct tweet_seq input
+        TW_t = TW[:,-1]   # last hidden state
+        # B, N, _ = TW.shape
+        # se_W, se_b = self.tw2se_W(TW).reshape(B, N, self.SE_dim, self.D), self.tw2se_b(TW)
+        # metaSE = torch.einsum('ne,bned->bnd', SE, se_W) + se_b
+        # te_W, te_b = self.tw2te_W(TW).reshape(B, N, self.TE_dim, self.D), self.tw2te_b(TW).unsqueeze(1)
+        # metaTE = torch.einsum('bte,bned->btnd', TE.to(device=self.device), te_W) + te_b
+        Wse, Wte = self.query_tw_memory(TW_t)
+        metaSE = torch.einsum('ne,bned->bnd', SE, Wse)
+        metaTE = torch.einsum('bte,bned->btnd', TE.to(device=self.device), Wte)
+        metaSTE = metaSE.unsqueeze(1) + metaTE      # match dim and sum: [batch_size, num_hist+num_pred, num_vertex, D]
         return metaSTE
 
         # SE = SE.unsqueeze(0).unsqueeze(0)
         # SE = self.FC_se(SE)
         # TE = TE.unsqueeze(dim=2).to(device=self.device)
         # TE = self.FC_te(TE)
-        # return SE + TE      # match dim and sum: [batch_size, num_hist+num_pred, num_vertex, D]
+        # return SE + TE
 
 
 class MemoryGMAN(nn.Module):
@@ -705,7 +736,7 @@ class MemoryGMAN(nn.Module):
         self.num_pred = timestep_out
         self.SE = SE
         self.STAttBlock_tw = nn.ModuleList([STAttBlock(K, d, 0, bn_decay, if_STE=False) for _ in range(L)])         # encoder twitter
-        self.MetaSTEmbedding = MetaSTEmbedding(SE_dim, TE_dim, D, bn_decay, device)
+        self.MetaSTEmbedding = MetaSTEmbedding(N, SE_dim, TE_dim, D, bn_decay, device)
 
         self.STAttBlock_1 = nn.ModuleList([STAttBlock(K, d, 0, bn_decay, if_STE=True) for _ in range(L)])          # encoder
         self.STAttBlock_2 = nn.ModuleList([STAttBlock(K, d, 0, bn_decay, if_STE=True) for _ in range(L)])       # decoder
@@ -842,4 +873,5 @@ class MemoryGMAN(nn.Module):
         # output
         X = self.FC_2(X)
         del STE, STE_his, STE_pred
+        # X = torch.tanh(X)
         return torch.squeeze(X, -1) #, query, pos, neg
