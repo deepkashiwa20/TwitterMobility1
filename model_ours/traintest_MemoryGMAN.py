@@ -45,18 +45,21 @@ def getModel():
     SE = loadSE(SE_path, area_index).to(device=device)
     print(SE.size())
     model = MemoryGMAN(SE, N=47, SE_dim=64, TE_dim=32, timestep_in=opt.his_len, timestep_out=opt.seq_len, device=device).to(device)
+    # summary(model, [(opt.his_len, num_variable, opt.channelin), (opt.his_len+opt.seq_len, opt.his_len+opt.seq_len)], device=device)
     return model
 
-def evaluateModel(model, criterion, criterion_contrastive, data_iter):
+def evaluateModel(model, criterion, criterion_2, criterion_3, data_iter):
     model.eval()
     l_sum, n = 0.0, 0
     with torch.no_grad():
         for x, te, y in data_iter:
-            y_pred = model(x, te)
-            l = criterion(y_pred, y)
-            #loss2 = criterion_contrastive(seq_mem_sim, model.mem_label)
+            #y_pred = model(x, te)
+            y_pred, query, pos, neg = model(x, te)
+            loss1 = criterion(y_pred, y)
+            # loss2 = criterion_2(query, pos.detach())
+            loss3 = criterion_3(query, pos.detach(), neg.detach())
             #loss2 = infoNCEloss(query, pos, neg)
-            #l = loss1 + 1 * loss2
+            l = loss1 + 10 * loss3
             l_sum += l.item() * y.shape[0]
             n += y.shape[0]
         return l_sum / n
@@ -66,13 +69,13 @@ def predictModel(model, data_iter):
     model.eval()
     with torch.no_grad():
         for x, te, y in data_iter:
-            YS_pred_batch = model(x, te)
+            YS_pred_batch, _, _, _ = model(x, te)
             YS_pred_batch = YS_pred_batch.cpu().numpy()
             YS_pred.append(YS_pred_batch)
         YS_pred = np.vstack(YS_pred)
     return YS_pred
 
-def infoNCEloss(q, p, n, T:float=1):
+def infoNCEloss(q, p, n, T:float=0.1):
     # batch = q.shape[0]
     # dim = q.shape[1]
     # q = q.view(batch, dim, -1)
@@ -80,11 +83,16 @@ def infoNCEloss(q, p, n, T:float=1):
     # q = F.normalize(q, dim=1)
     # k = F.normalize(k, dim=1)
 
-    q = F.normalize(q, dim=1)
-    p = F.normalize(p, dim=1)
-    n = F.normalize(n, dim=1)
+    q = F.normalize(q, dim=-1)   # anchor: (B, N, d)
+    p = F.normalize(p, dim=-1)   # positive pair: (B, N, d)
+    n = F.normalize(n, dim=-1)   # negative pairs: (B, N, d, M-1)
+
     pos_sim = torch.sum(torch.mul(q, p), dim=1)   # (B,)
     neg_sim = torch.einsum('bd,bdm->bm', q, n)    # (B, M-1)
+    # pos_sim = torch.einsum('bnq,bnp->b', q, p)      # (B,)
+    # neg_sim = torch.einsum('bnd,bndm->bnm', q, n)      # (B, N, M-1)
+    # neg_sim = neg_sim.reshape(neg_sim.shape[0], -1)
+
     pos = torch.exp(torch.div(pos_sim, T))
     neg = torch.sum(torch.exp(torch.div(neg_sim, T)), dim=-1)
     return torch.mean(-torch.log(torch.div(pos, neg + pos)))
@@ -108,7 +116,9 @@ def trainModel(name, mode, XS, YS, TE):
         criterion = nn.MSELoss()
     if opt.loss == 'MAE':
         criterion = nn.L1Loss()
-        criterion_contrastive = nn.BCEWithLogitsLoss()
+        # criterion_contrastive = nn.BCEWithLogitsLoss()
+        compact_loss = nn.MSELoss()
+        separate_loss = nn.TripletMarginLoss(margin=1.0)
     optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
     min_val_loss = np.inf
     wait = 0   
@@ -118,18 +128,21 @@ def trainModel(name, mode, XS, YS, TE):
         model.train()
         for x, te, y in train_iter:
             optimizer.zero_grad()
-            y_pred = model(x, te)
-            loss = criterion(y_pred, y)
+            # y_pred = model(x, te)
+            y_pred, query, pos, neg = model(x, te)
+            loss1 = criterion(y_pred, y)
             #loss2 = criterion_contrastive(seq_mem_sim, model.mem_label)
             #loss2 = infoNCEloss(query, pos, neg)
+            #loss2 = compact_loss(query, pos.detach())
+            loss3 = separate_loss(query, pos.detach(), neg.detach())
             #print(loss1, loss2)
-            #loss = loss1 + 1 * loss2
+            loss = loss1+ 10 * loss3
             loss.backward()
             optimizer.step()
             loss_sum += loss.item() * y.shape[0]
             n += y.shape[0]
         train_loss = loss_sum / n
-        val_loss = evaluateModel(model, criterion, criterion_contrastive, val_iter)
+        val_loss = evaluateModel(model, criterion, compact_loss, separate_loss, val_iter)
         if val_loss < min_val_loss:
             wait = 0
             min_val_loss = val_loss
@@ -145,10 +158,13 @@ def trainModel(name, mode, XS, YS, TE):
         with open(path + f'/{name}_log.txt', 'a') as f:
             f.write("%s, %d, %s, %d, %s, %s, %.10f, %s, %.10f\n" % ("epoch", epoch, "time used", epoch_time, "seconds", "train loss", train_loss, "validation loss:", val_loss))
             
-    torch_score = evaluateModel(model, criterion, criterion_contrastive, train_iter)
+    torch_score = evaluateModel(model, criterion, compact_loss, separate_loss, train_iter)
     YS_pred = predictModel(model, torch.utils.data.DataLoader(trainval_data, opt.batch_size, shuffle=False))
     logger.info('YS.shape, YS_pred.shape,', YS.shape, YS_pred.shape)
-    YS, YS_pred = scaler.inverse_transform(np.squeeze(YS)), scaler.inverse_transform(np.squeeze(YS_pred))
+    YS, YS_pred = np.squeeze(YS), np.squeeze(YS_pred) 
+    YS, YS_pred = YS.reshape(-1, YS.shape[-1]), YS_pred.reshape(-1, YS_pred.shape[-1])
+    YS, YS_pred = scaler.inverse_transform(YS), scaler.inverse_transform(YS_pred)
+    YS, YS_pred = YS.reshape(-1, opt.seq_len, YS.shape[-1]), YS_pred.reshape(-1, opt.seq_len, YS_pred.shape[-1])
     logger.info('YS.shape, YS_pred.shape,', YS.shape, YS_pred.shape)
     MSE, RMSE, MAE, MAPE = Metrics.evaluate(YS, YS_pred)
     with open(path + f'/{name}_prediction_scores.txt', 'a') as f:
@@ -172,11 +188,16 @@ def testModel(name, mode, XS, YS, TE):
         criterion = nn.MSELoss()
     if opt.loss == 'MAE':
         criterion = nn.L1Loss()
-        criterion_contrastive = nn.BCEWithLogitsLoss()
-    torch_score = evaluateModel(model, criterion, criterion_contrastive, test_iter)
+        # criterion_contrastive = nn.BCEWithLogitsLoss()
+        compact_loss = nn.MSELoss()
+        separate_loss = nn.TripletMarginLoss(margin=1.0)
+    torch_score = evaluateModel(model, criterion, compact_loss, separate_loss, test_iter)
     YS_pred = predictModel(model, test_iter)
     logger.info('YS.shape, YS_pred.shape,', YS.shape, YS_pred.shape)
-    YS, YS_pred = scaler.inverse_transform(np.squeeze(YS)), scaler.inverse_transform(np.squeeze(YS_pred))
+    YS, YS_pred = np.squeeze(YS), np.squeeze(YS_pred) 
+    YS, YS_pred = YS.reshape(-1, YS.shape[-1]), YS_pred.reshape(-1, YS_pred.shape[-1])
+    YS, YS_pred = scaler.inverse_transform(YS), scaler.inverse_transform(YS_pred)
+    YS, YS_pred = YS.reshape(-1, opt.seq_len, YS.shape[-1]), YS_pred.reshape(-1, opt.seq_len, YS_pred.shape[-1])
     logger.info('YS.shape, YS_pred.shape,', YS.shape, YS_pred.shape)
     np.save(path + f'/{name}_prediction.npy', YS_pred)
     np.save(path + f'/{name}_groundtruth.npy', YS)
@@ -206,7 +227,9 @@ parser.add_argument('--seed', type=int, default=1234, help='Random seed.')
 parser.add_argument('--seq_len', type=int, default=6, help='sequence length of values, which should be even nums (2,4,6,12)')
 parser.add_argument('--his_len', type=int, default=6, help='sequence length of observed historical values')
 parser.add_argument('--gpu', type=int, default=3, help='which gpu to use')
-parser.add_argument('--ex', type=str, default='typhoon-inflow', help='which experiment setting to run')
+parser.add_argument('--ex', type=str, default='typhoon-inflow-kanto8', help='which experiment setting to run')
+parser.add_argument('--channelin', type=int, default=2, help='number of input channel')
+parser.add_argument('--channelout', type=int, default=1, help='number of output channel')
 # {'typhoon-inflow-kanto8', 'typhoon-outflow-kanto8', 'covid-inflow-kanto8', 'covid-outflow-kanto8'}
 # tw_condition, his_condition = False, False
 # parser.add_argument('--cond_feat', type=int, default=32 + sum([tw_condition, his_condition]), help='condition features of D and G')
@@ -236,7 +259,7 @@ num_variable = len(target_area)
 
 _, filename = os.path.split(os.path.abspath(sys.argv[0]))
 filename = os.path.splitext(filename)[0]
-model_name = filename.split('_')[-1]
+model_name = filename.split('_')[1]
 path = f'./save/{exp}_{model_name}_' + time.strftime('%Y%m%d%H%M', time.localtime())
 logging_path = f'{path}/logging.txt'
 if not os.path.exists(path): os.makedirs(path)
@@ -284,8 +307,8 @@ torch.manual_seed(opt.seed)
 if torch.cuda.is_available():
     torch.cuda.manual_seed(opt.seed)
 
-scaler = StandardScaler()
-scaler_tw = MinMaxScaler((-1.0, 1.0))
+scaler = MinMaxScaler((-1, 1))
+scaler_tw = MinMaxScaler((-1, 1))
 
 def main():
     flow_all_times = [date.strftime('%Y-%m-%d %H:%M:%S') for date in pd.date_range(start=flow_start_date, end=flow_end_date, freq=freq)]

@@ -666,30 +666,102 @@ class MetaSTEmbedding(nn.Module):
         # memory use
         self.mem_num = mem_num
         self.mem_dim = mem_dim
-        self.tw_memory = self.construct_tw_memory()
+        self.global_memory = self.construct_global_memory()
+        # self.local_memory = self.construct_local_memory()
+        # memory fusion
+        self.mem_fus = GLU(D, D)
 
-    def construct_tw_memory(self):      # local
+    def construct_global_memory(self):
         memory_dict = nn.ParameterDict()
-        memory_dict['Memory'] = nn.Parameter(torch.randn(self.N, self.mem_num, self.mem_dim), requires_grad=True)     # (M, d)
-        memory_dict['Wq'] = nn.Parameter(torch.randn(self.D, self.mem_dim), requires_grad=True)    # project to query
+        memory_dict['Memory'] = nn.Parameter(torch.randn(self.mem_num, self.mem_dim), requires_grad=True)     # (M, d)
+        memory_dict['Wq'] = nn.Parameter(torch.randn(self.N*self.D, self.mem_dim), requires_grad=True)    # project to query
         memory_dict['FC_SE'] = nn.Parameter(torch.randn(self.mem_dim, self.SE_dim*self.D), requires_grad=True)
         memory_dict['FC_TE'] = nn.Parameter(torch.randn(self.mem_dim, self.TE_dim*self.D), requires_grad=True)
         for param in memory_dict.values():
             nn.init.xavier_normal_(param)
         return memory_dict
 
-    def query_tw_memory(self, TW_t:Tensor):
+    def query_global_memory(self, TW_t:Tensor):
         assert len(TW_t.shape) == 3, 'Input to query ST-Memory must be a 3D tensor'
         B = TW_t.shape[0]
 
-        query = torch.einsum('bnh,hd->bnd', TW_t, self.tw_memory['Wq'])     # (B, N, d)
-        att_score = torch.softmax(torch.einsum('bnd,nmd->bnm', query, self.tw_memory['Memory']), dim=-1)    # alpha: (B, N, M)
-        proto_t = torch.einsum('bnm,nmd->bnd', att_score, self.tw_memory['Memory'])     # (B, N, d)
+        TW_t_flat = TW_t.reshape(B, -1)
+        query = torch.mm(TW_t_flat, self.global_memory['Wq'])     # (B, d)
+        att_score = torch.softmax(torch.mm(query, self.global_memory['Memory'].t()), dim=1)         # alpha: (B, M)
+        proto_t = torch.mm(att_score, self.global_memory['Memory'])     # (B, d)
 
-        Wse = torch.matmul(proto_t, self.tw_memory['FC_SE'])    # (B, N, emb*d)
-        Wte = torch.matmul(proto_t, self.tw_memory['FC_TE'])    # (B, N, emb*d)
-        Wse, Wte = Wse.reshape(B, self.N, self.SE_dim, self.D), Wte.reshape(B, self.N, self.TE_dim, self.D)
-        return Wse, Wte
+        Wse = torch.matmul(proto_t, self.global_memory['FC_SE'])    # (B, emb*d)
+        Wte = torch.matmul(proto_t, self.global_memory['FC_TE'])    # (B, emb*d)
+        Wse, Wte = Wse.reshape(B, self.SE_dim, self.D), Wte.reshape(B, self.TE_dim, self.D)
+        return Wse, Wte, query, att_score
+
+    def get_NP_pair(self, att_score:Tensor):
+        _, ind = torch.topk(att_score, k=2, dim=1)
+        pos = self.global_memory['Memory'][ind[:,0]]
+        neg = self.global_memory['Memory'][ind[:,1]]
+        # print(pos.shape, neg.shape)
+        return pos, neg
+
+    # def construct_local_memory(self):
+    #     memory_dict = nn.ParameterDict()
+    #     memory_dict['Memory'] = nn.Parameter(torch.randn(self.N, self.mem_num, self.mem_dim), requires_grad=True)     # (N, M, d)
+    #     memory_dict['Wq'] = nn.Parameter(torch.randn(self.D, self.mem_dim), requires_grad=True)    # project to query
+    #     memory_dict['FC_SE'] = nn.Parameter(torch.randn(self.mem_dim, self.SE_dim*self.D), requires_grad=True)
+    #     memory_dict['FC_TE'] = nn.Parameter(torch.randn(self.mem_dim, self.TE_dim*self.D), requires_grad=True)
+    #     for param in memory_dict.values():
+    #         nn.init.xavier_normal_(param)
+    #     return memory_dict
+    #
+    # def query_local_memory(self, TW_t:Tensor):
+    #     assert len(TW_t.shape) == 3, 'Input to query ST-Memory must be a 3D tensor'
+    #     B = TW_t.shape[0]
+    #
+    #     query = torch.einsum('bnh,hd->bnd', TW_t, self.local_memory['Wq'])     # (B, N, d)
+    #     att_score = torch.softmax(torch.einsum('bnd,nmd->bnm', query, self.local_memory['Memory']), dim=-1)    # alpha: (B, N, M)
+    #     proto_t = torch.einsum('bnm,nmd->bnd', att_score, self.local_memory['Memory'])     # (B, N, d)
+    #
+    #     Wse = torch.matmul(proto_t, self.local_memory['FC_SE'])    # (B, N, emb*d)
+    #     Wte = torch.matmul(proto_t, self.local_memory['FC_TE'])    # (B, N, emb*d)
+    #     Wse, Wte = Wse.reshape(B, self.N, self.SE_dim, self.D), Wte.reshape(B, self.N, self.TE_dim, self.D)
+    #     return Wse, Wte, query, att_score
+
+    # def generate_NP_pairs(self, att_score:Tensor):      # w/ tw memory
+    #     assert len(att_score.shape) == 3
+    #
+    #     val, ind = att_score.sort(descending=True, dim=-1)
+    #     pos, neg = [], []
+    #     for b in range(ind.shape[0]):
+    #         b_pos, b_neg = [], []
+    #         for n in range(ind.shape[1]):
+    #             n_neg = []
+    #             for i in range(ind.shape[2]):
+    #                 if i == 0:      # most similar as positive
+    #                     b_pos.append(self.tw_memory['Memory'][n,ind[b,n,i],:])
+    #                 else:
+    #                     n_neg.append(self.tw_memory['Memory'][n,ind[b,n,i],:])
+    #             b_neg.append(torch.stack(n_neg, dim=-1))
+    #         pos.append(torch.stack(b_pos, dim=0))
+    #         neg.append(torch.stack(b_neg, dim=0))
+    #     pos = torch.stack(pos, dim=0)   # (B, N, d)
+    #     neg = torch.stack(neg, dim=0)   # (B, N, d, M-1)
+    #     return pos, neg
+
+    def generate_NP_pairs(self, att_score:Tensor):      # w/ tw memory
+        assert len(att_score.shape) == 2
+
+        val, ind = att_score.sort(descending=True, dim=1)       # topk more efficient!
+        pos, neg = [], []
+        for b in range(ind.shape[0]):
+            b_neg = []
+            for i in range(ind.shape[1]):
+                if i == 0:      # most similar
+                    pos.append(self.tw_memory['Memory'][ind[b,i],:])
+                else:
+                    b_neg.append(self.tw_memory['Memory'][ind[b,i],:])
+            neg.append(torch.stack(b_neg, dim=1))
+        pos = torch.stack(pos, dim=0)   # (B, d)
+        neg = torch.stack(neg, dim=0)   # (B, d, M-1)
+        return pos, neg
 
     def forward(self, TW, SE, TE):      # direct tweet_seq input
         TW_t = TW[:,-1]   # last hidden state
@@ -698,17 +770,43 @@ class MetaSTEmbedding(nn.Module):
         # metaSE = torch.einsum('ne,bned->bnd', SE, se_W) + se_b
         # te_W, te_b = self.tw2te_W(TW).reshape(B, N, self.TE_dim, self.D), self.tw2te_b(TW).unsqueeze(1)
         # metaTE = torch.einsum('bte,bned->btnd', TE.to(device=self.device), te_W) + te_b
-        Wse, Wte = self.query_tw_memory(TW_t)
-        metaSE = torch.einsum('ne,bned->bnd', SE, Wse)
-        metaTE = torch.einsum('bte,bned->btnd', TE.to(device=self.device), Wte)
-        metaSTE = metaSE.unsqueeze(1) + metaTE      # match dim and sum: [batch_size, num_hist+num_pred, num_vertex, D]
-        return metaSTE
+
+        # global
+        Wse, Wte, query, att_score = self.query_global_memory(TW_t)
+        pos, neg = self.get_NP_pair(att_score)
+        metaSE = torch.einsum('ne,bed->bnd', SE, Wse)
+        metaTE = torch.einsum('bte,bed->btd', TE.to(device=self.device), Wte)
+        global_metaSTE = metaSE.unsqueeze(1) + metaTE.unsqueeze(2)  # match dim and sum: [batch_size, num_hist+num_pred, num_vertex, D]
+
+        # local
+        # Wse, Wte = self.query_local_memory(TW_t)
+        # Wse, Wte, query, att_score = self.query_local_memory(TW_t)
+        # metaSE = torch.einsum('ne,bned->bnd', SE, Wse)
+        # metaTE = torch.einsum('bte,bned->btnd', TE.to(device=self.device), Wte)
+        # local_metaSTE = metaSE.unsqueeze(1) + metaTE      # match dim and sum: [batch_size, num_hist+num_pred, num_vertex, D]
+
+        # metaSTE = torch.mul(torch.tanh(local_metaSTE), torch.sigmoid(global_metaSTE))
+        # metaSTE = self.mem_fus(local_metaSTE, global_metaSTE)
+        # metaSTE = self.mem_fus(local_metaSTE)
+        # contrastive pos/neg
+        #pos, neg = self.generate_NP_pairs(att_score)
+        return global_metaSTE, query, pos, neg
 
         # SE = SE.unsqueeze(0).unsqueeze(0)
         # SE = self.FC_se(SE)
         # TE = TE.unsqueeze(dim=2).to(device=self.device)
         # TE = self.FC_te(TE)
         # return SE + TE
+
+
+class GLU(nn.Module):
+    def __init__(self, input_channel, output_channel):
+        super(GLU, self).__init__()
+        self.linear_left = nn.Linear(input_channel, output_channel)
+        self.linear_right = nn.Linear(input_channel, output_channel)
+
+    def forward(self, x):
+        return torch.mul(self.linear_left(x), torch.sigmoid(self.linear_right(x)))
 
 
 class MemoryGMAN(nn.Module):
@@ -844,7 +942,8 @@ class MemoryGMAN(nn.Module):
             TW = net(TW, None)
 
         # STE
-        STE = self.MetaSTEmbedding(TW, self.SE, TE)
+        STE, query, pos, neg = self.MetaSTEmbedding(TW, self.SE, TE)
+        # STE = self.MetaSTEmbedding(TW, self.SE, TE)
         STE_his = STE[:, :self.num_his]
         STE_pred = STE[:, self.num_his:]
         # encoder
@@ -873,5 +972,5 @@ class MemoryGMAN(nn.Module):
         # output
         X = self.FC_2(X)
         del STE, STE_his, STE_pred
-        # X = torch.tanh(X)
-        return torch.squeeze(X, -1) #, query, pos, neg
+        X = torch.tanh(X)
+        return torch.squeeze(X, -1), query, pos, neg
