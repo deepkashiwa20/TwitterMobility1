@@ -37,8 +37,8 @@ def getModel():
                      CNN_kernel=3,
                      skip=3,
                      highway_window=24,
-                    dropout=0.2, 
-                    output_fun=None).to(device)
+                     dropout=0, 
+                     output_fun='tanh').to(device)
     else:
         model = LSTNet(num_variable=num_variable,
                      in_dim = opt.channelin,
