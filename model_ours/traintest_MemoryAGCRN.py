@@ -18,7 +18,7 @@ from configparser import ConfigParser
 import logging
 import Metrics
 from MemoryAGCRN import *
-from Utils import get_pref_id, get_flow, get_adj, get_seq_data, getXSYS_single, getXSYS, get_twitter
+from Utils import get_pref_id, get_flow, get_adj, get_seq_data, getXSYS_single, getXSYS, get_onehottime, get_twitter
 
 def refineXSYS(XS, YS):
     XS, YS = XS[:, :, :, np.newaxis], YS[:, :, :, np.newaxis]
@@ -40,8 +40,8 @@ def evaluateModel(model, criterion, data_iter):
     model.eval()
     l_sum, n = 0.0, 0
     with torch.no_grad():
-        for x, y in data_iter:
-            y_pred = model(x)
+        for x, te, y in data_iter:
+            y_pred = model(x, te)
             l = criterion(y_pred, y)
             l_sum += l.item() * y.shape[0]
             n += y.shape[0]
@@ -51,19 +51,20 @@ def predictModel(model, data_iter):
     YS_pred = []
     model.eval()
     with torch.no_grad():
-        for x, y in data_iter:
-            YS_pred_batch = model(x)
+        for x, te, y in data_iter:
+            YS_pred_batch = model(x, te)
             YS_pred_batch = YS_pred_batch.cpu().numpy()
             YS_pred.append(YS_pred_batch)
         YS_pred = np.vstack(YS_pred)
     return YS_pred
 
-def trainModel(name, mode, XS, YS):
+def trainModel(name, mode, XS, YS, TE):
     logger.info('Model Training Started ...', time.ctime())
     logger.info('TIMESTEP_IN, TIMESTEP_OUT', opt.his_len, opt.seq_len)
     model = getModel()
     XS_torch, YS_torch = torch.Tensor(XS).to(device), torch.Tensor(YS).to(device)
-    trainval_data = torch.utils.data.TensorDataset(XS_torch, YS_torch)
+    TE_torch = torch.Tensor(TE).to(device)
+    trainval_data = torch.utils.data.TensorDataset(XS_torch, TE_torch, YS_torch)
     trainval_size = len(trainval_data)
     train_size = int(trainval_size * (1 - opt.val_ratio))
     logger.info('XS_torch.shape:  ', XS_torch.shape)
@@ -72,8 +73,10 @@ def trainModel(name, mode, XS, YS):
     val_data = torch.utils.data.Subset(trainval_data, list(range(train_size, trainval_size)))
     train_iter = torch.utils.data.DataLoader(train_data, opt.batch_size, shuffle=True)
     val_iter = torch.utils.data.DataLoader(val_data, opt.batch_size, shuffle=True)
-    if opt.loss == 'MSE': criterion = nn.MSELoss()
-    if opt.loss == 'MAE': criterion = nn.L1Loss()
+    if opt.loss == 'MSE':
+        criterion = nn.MSELoss()
+    if opt.loss == 'MAE':
+        criterion = nn.L1Loss()
     optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
     min_val_loss = np.inf
     wait = 0   
@@ -81,9 +84,9 @@ def trainModel(name, mode, XS, YS):
         starttime = datetime.now()     
         loss_sum, n = 0.0, 0
         model.train()
-        for x, y in train_iter:
+        for x, te, y in train_iter:
             optimizer.zero_grad()
-            y_pred = model(x)
+            y_pred = model(x, te)
             loss = criterion(y_pred, y)
             loss.backward()
             optimizer.step()
@@ -124,16 +127,19 @@ def trainModel(name, mode, XS, YS):
     logger.info("%s, %s, MSE, RMSE, MAE, MAPE, %.10f, %.10f, %.10f, %.10f" % (name, mode, MSE, RMSE, MAE, MAPE))
     logger.info('Model Training Ended ...', time.ctime())
         
-def testModel(name, mode, XS, YS):
+def testModel(name, mode, XS, YS, TE):
     logger.info('Model Testing Started ...', time.ctime())
     logger.info('TIMESTEP_IN, TIMESTEP_OUT', opt.his_len, opt.seq_len)
     XS_torch, YS_torch = torch.Tensor(XS).to(device), torch.Tensor(YS).to(device)
-    test_data = torch.utils.data.TensorDataset(XS_torch, YS_torch)
+    TE_torch = torch.Tensor(TE).to(device)
+    test_data = torch.utils.data.TensorDataset(XS_torch, TE_torch, YS_torch)
     test_iter = torch.utils.data.DataLoader(test_data, opt.batch_size, shuffle=False)
     model = getModel()
     model.load_state_dict(torch.load(path + f'/{name}.pt'))
-    if opt.loss == 'MSE': criterion = nn.MSELoss()
-    if opt.loss == 'MAE': criterion = nn.L1Loss()
+    if opt.loss == 'MSE':
+        criterion = nn.MSELoss()
+    if opt.loss == 'MAE':
+        criterion = nn.L1Loss()
     torch_score = evaluateModel(model, criterion, test_iter)
     YS_pred = predictModel(model, test_iter)
     logger.info('YS.shape, YS_pred.shape,', YS.shape, YS_pred.shape)
@@ -257,9 +263,11 @@ def main():
     start_index, end_index = flow_all_times.index(target_start_date), flow_all_times.index(target_end_date)
     area_index = get_pref_id(pref_path, target_area)
     flow = get_flow(flow_type, flow_path, start_index, end_index, area_index)
+    onehottime = get_onehottime(target_start_date, target_end_date, freq)
     twitter = get_twitter(twitter_path, pref_path, target_start_date, target_end_date, target_area)
     data = scaler.fit_transform(flow)
     data_tw = scaler_tw.fit_transform(twitter)
+    logger.info('original flow data, flow.min, flow.max, onehottime', flow.shape, flow.min(), flow.max(), onehottime.shape)
     logger.info('flow.shape, twitter.shape', data.shape, data.min(), data.max(), data_tw.shape, data_tw.min(), data_tw.max())
     
     logger.info(opt.ex, 'training started', time.ctime())
@@ -268,17 +276,21 @@ def main():
     trainXS_tw, trainYS_tw = getXSYS(data_tw, 'train', opt.his_len, opt.seq_len, opt.trainval_ratio)
     trainXS_tw, trainYS_tw = refineXSYS(trainXS_tw, trainYS_tw)
     trainXS = mergeInfo(trainXS, trainXS_tw)
-    logger.info('TRAIN XS.shape YS,shape', trainXS.shape, trainYS.shape)
-    trainModel(model_name, 'train', trainXS, trainYS)
-        
+    trainXS_TE, trainYS_TE = getXSYS(onehottime, 'train', opt.his_len, opt.seq_len, opt.trainval_ratio)
+    trainTE = np.concatenate([trainXS_TE, trainYS_TE], axis=1)
+    logger.info('TRAIN XS.shape YS,shape', trainXS.shape, trainYS.shape, trainTE.shape)
+    trainModel(model_name, 'train', trainXS, trainYS, trainTE)
+
     logger.info(opt.ex, 'testing started', time.ctime())
     testXS, testYS = getXSYS(data, 'test', opt.his_len, opt.seq_len, opt.trainval_ratio)
     testXS, testYS = refineXSYS(testXS, testYS)
     testXS_tw, testYS_tw = getXSYS(data_tw, 'test', opt.his_len, opt.seq_len, opt.trainval_ratio)
     testXS_tw, testYS_tw = refineXSYS(testXS_tw, testYS_tw)
     testXS = mergeInfo(testXS, testXS_tw)
-    logger.info('TEST XS.shape, YS.shape', testXS.shape, testYS.shape)
-    testModel(model_name, 'test', testXS, testYS)
+    testXS_TE, testYS_TE = getXSYS(onehottime, 'test', opt.his_len, opt.seq_len, opt.trainval_ratio)
+    testTE = np.concatenate([testXS_TE, testYS_TE], axis=1)
+    logger.info('TEST XS.shape, YS.shape', testXS.shape, testYS.shape, testTE.shape)
+    testModel(model_name, 'test', testXS, testYS, testTE)
 
     
 if __name__ == '__main__':

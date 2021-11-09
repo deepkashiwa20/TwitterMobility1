@@ -169,7 +169,8 @@ class AGCRN(nn.Module):
 
 
 class MemoryAGCRN(nn.Module):
-    def __init__(self, num_nodes, input_dim, output_dim, horizon, rnn_units=64, num_layers=2, default_graph=True, embed_dim=8, cheb_k=2):
+    def __init__(self, num_nodes, input_dim, output_dim, horizon, rnn_units=64, num_layers=2, default_graph=True, embed_dim=8, cheb_k=2,
+                 mem_num:int=5, mem_dim:int=8, tcov_in_dim=32, tcov_embed_dim=10, tcov_h_dim=1):
         super(MemoryAGCRN, self).__init__()
         self.num_node = num_nodes
         self.input_dim = input_dim
@@ -182,11 +183,18 @@ class MemoryAGCRN(nn.Module):
         self.default_graph = default_graph
         self.node_embeddings = nn.Parameter(torch.randn(self.num_node, embed_dim), requires_grad=True)
 
+        # twitter branch
         self.encoder_tw = AVWDCRNN(num_nodes, input_dim, rnn_units, cheb_k, embed_dim, num_layers)  # twi
-        self.encoder = AVWDCRNN(num_nodes, input_dim, rnn_units, cheb_k, embed_dim, num_layers)     # mob
-
-        self.mem_num = 5
-        self.mem_dim = 8
+        self.encoder = AVWDCRNN(num_nodes, input_dim+tcov_h_dim, rnn_units, cheb_k, embed_dim, num_layers)     # mob
+        # tcov input
+        self.tcov_in_dim = tcov_in_dim
+        self.tcov_embed_dim = tcov_embed_dim
+        self.tcov_h_dim = tcov_h_dim
+        self.tcov_in = nn.Sequential(nn.Linear(tcov_in_dim, tcov_embed_dim, True),
+                                     nn.Linear(tcov_embed_dim, num_nodes*tcov_h_dim, True))
+        # memory
+        self.mem_num = mem_num
+        self.mem_dim = mem_dim
         self.global_memory = self.construct_global_memory()
 
         # predictor
@@ -196,7 +204,8 @@ class MemoryAGCRN(nn.Module):
         memory_dict = nn.ParameterDict()
         memory_dict['Memory'] = nn.Parameter(torch.randn(self.mem_num, self.mem_dim), requires_grad=True)     # (M, d)
         memory_dict['Wq'] = nn.Parameter(torch.randn(self.num_node*self.hidden_dim, self.mem_dim), requires_grad=True)    # project to query
-        memory_dict['FC_SE'] = nn.Parameter(torch.randn(self.mem_dim, self.embed_dim*self.embed_dim), requires_grad=True)
+        memory_dict['TE_FC1'] = nn.Parameter(torch.randn(self.mem_dim, self.tcov_in_dim*self.tcov_embed_dim), requires_grad=True)
+        memory_dict['TE_FC2'] = nn.Parameter(torch.randn(self.mem_dim, self.tcov_embed_dim*self.num_node*self.tcov_h_dim), requires_grad=True)
         for param in memory_dict.values():
             nn.init.xavier_normal_(param)
         return memory_dict
@@ -210,12 +219,12 @@ class MemoryAGCRN(nn.Module):
         att_score = torch.softmax(torch.mm(query, self.global_memory['Memory'].t()), dim=1)         # alpha: (B, M)
         proto_t = torch.mm(att_score, self.global_memory['Memory'])     # (B, d)
 
-        Wse = torch.matmul(proto_t, self.global_memory['FC_SE'])
-        Wse = Wse.reshape(B, self.embed_dim, self.embed_dim)
-        return Wse
+        Wte1 = torch.matmul(proto_t, self.global_memory['TE_FC1']).reshape(B, self.tcov_in_dim, self.tcov_embed_dim)
+        Wte2 = torch.matmul(proto_t, self.global_memory['TE_FC2']).reshape(B, self.tcov_embed_dim, self.num_node, self.tcov_h_dim)
+        return Wte1, Wte2
 
     # def forward(self, source, targets, teacher_forcing_ratio=0.5):
-    def forward(self, source):
+    def forward(self, source, TE):
         #source: B, T_1, N, D
         #target: B, T_2, N, D
         #supports = F.softmax(F.relu(torch.mm(self.nodevec1, self.nodevec1.transpose(0,1))), dim=1)
@@ -227,12 +236,15 @@ class MemoryAGCRN(nn.Module):
         init_state = self.encoder_tw.init_hidden(TW.shape[0])
         output_tw, _ = self.encoder_tw(TW, init_state, self.node_embeddings)      # B, T, N, hidden
         output_tw = output_tw[:, -1, :, :]
-        Wse = self.query_global_memory(output_tw)
-        node_embeddings = torch.einsum('nd,bdc->bnc', self.node_embeddings, Wse)
+        Wte1, Wte2 = self.query_global_memory(output_tw)
+        TE = torch.einsum('bti,bie->bte', TE, Wte1)
+        TE = torch.einsum('bte,benh->btnh', TE, Wte2)
+        # TE = self.tcov_in(TE).reshape(TE.shape[0], TE.shape[1], self.num_node, self.tcov_h_dim)       # (B, a+b, N, tcov_h)
+        X = torch.cat([X, TE[:,:-self.horizon,:,:]], dim=-1)
 
         # mobility branch
         init_state = self.encoder.init_hidden(X.shape[0])
-        output, _ = self.encoder(X, init_state, node_embeddings)      #B, T, N, hidden
+        output, _ = self.encoder(X, init_state, self.node_embeddings)      #B, T, N, hidden
         output = output[:, -1:, :, :]                                   #B, 1, N, hidden
 
         #CNN based predictor
