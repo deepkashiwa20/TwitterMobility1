@@ -170,7 +170,7 @@ class AGCRN(nn.Module):
 
 class MemoryAGCRN(nn.Module):
     def __init__(self, num_nodes, input_dim, output_dim, horizon, rnn_units=64, num_layers=2, default_graph=True, embed_dim=8, cheb_k=2,
-                 mem_num:int=10, mem_dim:int=12, tcov_in_dim=32, tcov_embed_dim=10, tcov_h_dim=1):
+                 mem_num:int=10, mem_dim:int=8, tcov_in_dim=32, tcov_embed_dim=10, tcov_h_dim=1):
         super(MemoryAGCRN, self).__init__()
         self.num_node = num_nodes
         self.input_dim = input_dim
