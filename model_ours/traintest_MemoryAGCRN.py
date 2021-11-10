@@ -36,13 +36,16 @@ def getModel():
             nn.init.uniform_(p)
     return model
 
-def evaluateModel(model, criterion, data_iter):
+def evaluateModel(model, criterion, criterion_2, criterion_3, data_iter):
     model.eval()
     l_sum, n = 0.0, 0
     with torch.no_grad():
         for x, te, y in data_iter:
-            y_pred = model(x, te)
-            l = criterion(y_pred, y)
+            y_pred, query, pos, neg = model(x, te)
+            loss1 = criterion(y_pred, y)
+            # loss2 = criterion_2(query, pos.detach())
+            loss3 = criterion_3(query, pos.detach(), neg.detach())
+            l = loss1 + 5 * loss3
             l_sum += l.item() * y.shape[0]
             n += y.shape[0]
         return l_sum / n
@@ -52,7 +55,7 @@ def predictModel(model, data_iter):
     model.eval()
     with torch.no_grad():
         for x, te, y in data_iter:
-            YS_pred_batch = model(x, te)
+            YS_pred_batch, _, _, _ = model(x, te)
             YS_pred_batch = YS_pred_batch.cpu().numpy()
             YS_pred.append(YS_pred_batch)
         YS_pred = np.vstack(YS_pred)
@@ -77,6 +80,8 @@ def trainModel(name, mode, XS, YS, TE):
         criterion = nn.MSELoss()
     if opt.loss == 'MAE':
         criterion = nn.L1Loss()
+        compact_loss = nn.MSELoss()
+        separate_loss = nn.TripletMarginLoss(margin=1.0)
     optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
     min_val_loss = np.inf
     wait = 0   
@@ -86,14 +91,17 @@ def trainModel(name, mode, XS, YS, TE):
         model.train()
         for x, te, y in train_iter:
             optimizer.zero_grad()
-            y_pred = model(x, te)
-            loss = criterion(y_pred, y)
+            y_pred, query, pos, neg = model(x, te)
+            loss1 = criterion(y_pred, y)
+            # loss2 = compact_loss(query, pos.detach())
+            loss3 = separate_loss(query, pos.detach(), neg.detach())
+            loss = loss1 + 5 * loss3
             loss.backward()
             optimizer.step()
             loss_sum += loss.item() * y.shape[0]
             n += y.shape[0]
         train_loss = loss_sum / n
-        val_loss = evaluateModel(model, criterion, val_iter)
+        val_loss = evaluateModel(model, criterion, compact_loss, separate_loss, val_iter)
         if val_loss < min_val_loss:
             wait = 0
             min_val_loss = val_loss
@@ -109,7 +117,7 @@ def trainModel(name, mode, XS, YS, TE):
         with open(path + f'/{name}_log.txt', 'a') as f:
             f.write("%s, %d, %s, %d, %s, %s, %.10f, %s, %.10f\n" % ("epoch", epoch, "time used", epoch_time, "seconds", "train loss", train_loss, "validation loss:", val_loss))
             
-    torch_score = evaluateModel(model, criterion, train_iter)
+    torch_score = evaluateModel(model, criterion, compact_loss, separate_loss, train_iter)
     YS_pred = predictModel(model, torch.utils.data.DataLoader(trainval_data, opt.batch_size, shuffle=False))
     logger.info('YS.shape, YS_pred.shape,', YS.shape, YS_pred.shape)
     # YS, YS_pred = scaler.inverse_transform(np.squeeze(YS)), scaler.inverse_transform(np.squeeze(YS_pred))
@@ -140,7 +148,9 @@ def testModel(name, mode, XS, YS, TE):
         criterion = nn.MSELoss()
     if opt.loss == 'MAE':
         criterion = nn.L1Loss()
-    torch_score = evaluateModel(model, criterion, test_iter)
+        compact_loss = nn.MSELoss()
+        separate_loss = nn.TripletMarginLoss(margin=1.0)
+    torch_score = evaluateModel(model, criterion, compact_loss, separate_loss, test_iter)
     YS_pred = predictModel(model, test_iter)
     logger.info('YS.shape, YS_pred.shape,', YS.shape, YS_pred.shape)
     # YS, YS_pred = scaler.inverse_transform(np.squeeze(YS)), scaler.inverse_transform(np.squeeze(YS_pred))
