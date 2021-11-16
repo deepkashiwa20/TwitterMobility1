@@ -1,0 +1,90 @@
+channel 1
+event typhoon
+flow_type outflow
+flow_path ../data/outflow_hour20180101_20210228.npy
+adj_path ../data/adjacency_matrix.npy
+twitter_path ../data/Japan_2019Hurricane_Total_tweet_count.csv
+pref_path ../data/Japan_prefectures.csv
+freq 1H
+flow_start_date 2018-01-01 00:00:00
+flow_end_date 2021-02-28 23:59:59
+twitter_start_date 2019-06-30 09:00:00
+twitter_end_date 2019-10-31 08:00:00
+target_start_date 2019-07-01 00:00:00
+target_end_date 2019-10-30 23:00:00
+target_area ['Hokkaido', 'Aomori', 'Iwate', 'Miyagi', 'Akita', 'Yamagata', 'Fukushima', 'Ibaraki', 'Tochigi', 'Gunma', 'Saitama', 'Chiba', 'Tokyo', 'Kanagawa', 'Niigata', 'Toyama', 'Ishikawa', 'Fukui', 'Yamanashi', 'Nagano', 'Gifu', 'Shizuoka', 'Aichi', 'Mie', 'Shiga', 'Kyoto', 'Osaka', 'Hyogo', 'Nara', 'Wakayama', 'Tottori', 'Shimane', 'Okayama', 'Hiroshima', 'Yamaguchi', 'Tokushima', 'Kagawa', 'Ehime', 'Kochi', 'Fukuoka', 'Saga', 'Nagasaki', 'Kumamoto', 'Oita', 'Miyazaki', 'Kagoshima', 'Okinawa']
+model_name ASTGCN
+original flow data ... (2928, 47) 101.0 193040.0
+scaled flow data ... (2928, 47) -1.0 1.0000000000000002
+typhoon-outflow training started Tue Nov  9 23:24:26 2021
+TRAIN XS.shape YS,shape (2169, 18, 47, 1) (2169, 6, 47, 1)
+Model Training Started ... Tue Nov  9 23:24:26 2021
+TIMESTEP_IN, TIMESTEP_OUT 6 6
+XS_torch.shape:   torch.Size([2169, 18, 47, 1])
+YS_torch.shape:   torch.Size([2169, 6, 47, 1])
+epoch 0 time used: 2  seconds  train loss: 0.38632110925104934 validation loss: 0.2193218486908391
+epoch 1 time used: 1  seconds  train loss: 0.15730040182266727 validation loss: 0.14102549274652704
+epoch 2 time used: 1  seconds  train loss: 0.1217075705729874 validation loss: 0.13172934419761925
+epoch 3 time used: 1  seconds  train loss: 0.10730427435769953 validation loss: 0.11443886096361153
+epoch 4 time used: 1  seconds  train loss: 0.09716295117345097 validation loss: 0.10309825007483006
+epoch 5 time used: 2  seconds  train loss: 0.09448168049182692 validation loss: 0.10092596145789268
+epoch 6 time used: 1  seconds  train loss: 0.09118937995161078 validation loss: 0.09864245034054497
+epoch 7 time used: 2  seconds  train loss: 0.08933046131153095 validation loss: 0.10337579200939578
+epoch 8 time used: 2  seconds  train loss: 0.09281827853981126 validation loss: 0.10553036605455599
+epoch 9 time used: 2  seconds  train loss: 0.09055483635391257 validation loss: 0.10368906919249293
+epoch 10 time used: 2  seconds  train loss: 0.08683716466359401 validation loss: 0.09685730361971408
+epoch 11 time used: 2  seconds  train loss: 0.08976233033016599 validation loss: 0.09342096260239406
+epoch 12 time used: 2  seconds  train loss: 0.08422113611359437 validation loss: 0.09431849042739218
+epoch 13 time used: 2  seconds  train loss: 0.08239114915019619 validation loss: 0.10027696075634843
+epoch 14 time used: 2  seconds  train loss: 0.08600557992305849 validation loss: 0.09395524373699947
+epoch 15 time used: 3  seconds  train loss: 0.07938004253022052 validation loss: 0.09624454619201726
+epoch 16 time used: 3  seconds  train loss: 0.08307697500249997 validation loss: 0.08456900570383827
+epoch 17 time used: 3  seconds  train loss: 0.07874653155733298 validation loss: 0.09091151707409495
+epoch 18 time used: 3  seconds  train loss: 0.07629312290769955 validation loss: 0.08484118748764966
+epoch 19 time used: 3  seconds  train loss: 0.07604439135957028 validation loss: 0.0796224781162831
+epoch 20 time used: 2  seconds  train loss: 0.07460732590338401 validation loss: 0.08775746707099577
+epoch 21 time used: 2  seconds  train loss: 0.0740912935134083 validation loss: 0.08724896041727856
+epoch 22 time used: 2  seconds  train loss: 0.07348619673634807 validation loss: 0.07921622563187808
+epoch 23 time used: 2  seconds  train loss: 0.07251218385618698 validation loss: 0.07929664939422414
+epoch 24 time used: 2  seconds  train loss: 0.07443586834059136 validation loss: 0.08185691020106742
+epoch 25 time used: 2  seconds  train loss: 0.07037611281428244 validation loss: 0.09415971013008999
+epoch 26 time used: 2  seconds  train loss: 0.07319911501541056 validation loss: 0.08139679402552037
+epoch 27 time used: 2  seconds  train loss: 0.06968181528984987 validation loss: 0.08080139308893439
+epoch 28 time used: 2  seconds  train loss: 0.06770057927675059 validation loss: 0.0757518845231274
+epoch 29 time used: 2  seconds  train loss: 0.06780763637150786 validation loss: 0.08078807018162137
+epoch 30 time used: 2  seconds  train loss: 0.06848097123837998 validation loss: 0.07573625210048306
+epoch 31 time used: 2  seconds  train loss: 0.06925200354789016 validation loss: 0.07654795176855547
+epoch 32 time used: 2  seconds  train loss: 0.07093216849978999 validation loss: 0.07786371512252761
+epoch 33 time used: 2  seconds  train loss: 0.06736857492618749 validation loss: 0.07399318080470926
+epoch 34 time used: 2  seconds  train loss: 0.06760283160913474 validation loss: 0.07589605307930301
+epoch 35 time used: 2  seconds  train loss: 0.06752448079037637 validation loss: 0.07873613991076556
+epoch 36 time used: 2  seconds  train loss: 0.07130962457200844 validation loss: 0.09667196172816099
+epoch 37 time used: 2  seconds  train loss: 0.0717970816943185 validation loss: 0.07906140473501458
+epoch 38 time used: 2  seconds  train loss: 0.0685919228698348 validation loss: 0.08285393907549632
+epoch 39 time used: 2  seconds  train loss: 0.07408900916356442 validation loss: 0.08302155724326989
+epoch 40 time used: 2  seconds  train loss: 0.0680787253112224 validation loss: 0.08588750139016034
+epoch 41 time used: 2  seconds  train loss: 0.06978303600024767 validation loss: 0.07521731912760445
+epoch 42 time used: 1  seconds  train loss: 0.06734527181948537 validation loss: 0.07853421313657287
+Early stopping at epoch: 43 
+YS.shape, YS_pred.shape, (2169, 6, 47, 1) (2169, 6, 47, 1)
+YS.shape, YS_pred.shape, (2169, 6, 47) (2169, 6, 47)
+**************************************** 
+ASTGCN, train, Torch MSE, 6.8580675087e-02, 0.0685806751 
+ASTGCN, train, MSE, RMSE, MAE, MAPE, 5218923.7966158651, 2284.4963989063, 911.6043953460, 12.9475983357 
+Model Training Ended ... Tue Nov  9 23:26:21 2021
+typhoon-outflow testing started Tue Nov  9 23:26:21 2021
+TEST XS.shape, YS.shape (581, 18, 47, 1) (581, 6, 47, 1)
+Model Testing Started ... Tue Nov  9 23:26:21 2021
+TIMESTEP_IN, TIMESTEP_OUT 6 6
+YS.shape, YS_pred.shape, (581, 6, 47, 1) (581, 6, 47, 1)
+YS.shape, YS_pred.shape, (581, 6, 47) (581, 6, 47)
+**************************************** 
+ASTGCN, test, Torch MSE, 7.9758446830e-02, 0.0797584468 
+all pred steps, ASTGCN, test, MSE, RMSE, MAE, MAPE, 15528386.7404551338, 3940.6074075522, 1157.5416514857, 14.4192009045 
+1 step, ASTGCN, test, MSE, RMSE, MAE, MAPE, 12223874.7385038827, 3496.2658277802, 1037.0061692457, 12.0436638877 
+2 step, ASTGCN, test, MSE, RMSE, MAE, MAPE, 16061702.8210864235, 4007.7054309276, 1206.8299735151, 14.2827162490 
+3 step, ASTGCN, test, MSE, RMSE, MAE, MAPE, 15341660.1780238114, 3916.8431393182, 1116.3998134760, 13.9479633013 
+4 step, ASTGCN, test, MSE, RMSE, MAE, MAPE, 16224130.7199714370, 4027.9189068266, 1220.8847935340, 16.2919334476 
+5 step, ASTGCN, test, MSE, RMSE, MAE, MAPE, 16046354.3949193712, 4005.7901086951, 1138.7050443307, 13.5641025678 
+6 step, ASTGCN, test, MSE, RMSE, MAE, MAPE, 17272597.5902258568, 4156.0314712747, 1225.4241148129, 16.3848259739 
+Model Testing Ended ... Tue Nov  9 23:26:22 2021

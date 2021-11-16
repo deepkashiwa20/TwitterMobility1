@@ -1,0 +1,70 @@
+channel 1
+event covid
+flow_type outflow
+flow_path ../data/outflow_hour20180101_20210228.npy
+adj_path ../data/adjacency_matrix.npy
+twitter_path ../data/Japan_COVID-19_Total_tweet_count.csv
+pref_path ../data/Japan_prefectures.csv
+freq 1H
+flow_start_date 2018-01-01 00:00:00
+flow_end_date 2021-02-28 23:59:59
+twitter_start_date 2019-12-31 09:00:00
+twitter_end_date 2021-02-28 08:00:00
+target_start_date 2020-01-01 00:00:00
+target_end_date 2021-02-28 08:00:00
+target_area ['Hokkaido', 'Aomori', 'Iwate', 'Miyagi', 'Akita', 'Yamagata', 'Fukushima', 'Ibaraki', 'Tochigi', 'Gunma', 'Saitama', 'Chiba', 'Tokyo', 'Kanagawa', 'Niigata', 'Toyama', 'Ishikawa', 'Fukui', 'Yamanashi', 'Nagano', 'Gifu', 'Shizuoka', 'Aichi', 'Mie', 'Shiga', 'Kyoto', 'Osaka', 'Hyogo', 'Nara', 'Wakayama', 'Tottori', 'Shimane', 'Okayama', 'Hiroshima', 'Yamaguchi', 'Tokushima', 'Kagawa', 'Ehime', 'Kochi', 'Fukuoka', 'Saga', 'Nagasaki', 'Kumamoto', 'Oita', 'Miyazaki', 'Kagoshima', 'Okinawa']
+model_name GraphWaveNet
+original flow data ... (10185, 47) 64.0 152098.0
+scaled flow data ... (10185, 47) -1.0 1.0000000000000002
+covid-outflow training started Tue Nov  9 22:59:04 2021
+TRAIN XS.shape YS,shape (8139, 1, 47, 6) (8139, 6, 47, 1)
+Model Training Started ... Tue Nov  9 22:59:04 2021
+TIMESTEP_IN, TIMESTEP_OUT 6 6
+XS_torch.shape:   torch.Size([8139, 1, 47, 6])
+YS_torch.shape:   torch.Size([8139, 6, 47, 1])
+epoch 0 time used: 12  seconds  train loss: 0.1720640108985326 validation loss: 0.08651763344645794
+epoch 1 time used: 12  seconds  train loss: 0.10256908791991705 validation loss: 0.07029818629603421
+epoch 2 time used: 12  seconds  train loss: 0.08591559818344066 validation loss: 0.07741324598798002
+epoch 3 time used: 11  seconds  train loss: 0.08159129485624646 validation loss: 0.06685265452768059
+epoch 4 time used: 12  seconds  train loss: 0.0783650423760183 validation loss: 0.058326175926065565
+epoch 5 time used: 12  seconds  train loss: 0.070784085690194 validation loss: 0.06089064445923236
+epoch 6 time used: 12  seconds  train loss: 0.07044089674402815 validation loss: 0.0570629889717559
+epoch 7 time used: 13  seconds  train loss: 0.07088138076182586 validation loss: 0.059347604323151074
+epoch 8 time used: 12  seconds  train loss: 0.07069714575380985 validation loss: 0.05168356762178407
+epoch 9 time used: 12  seconds  train loss: 0.06340403465229437 validation loss: 0.051479407590276194
+epoch 10 time used: 11  seconds  train loss: 0.06252184392564575 validation loss: 0.05595096596665406
+epoch 11 time used: 11  seconds  train loss: 0.06272207169767914 validation loss: 0.0478642777542078
+epoch 12 time used: 11  seconds  train loss: 0.05892866770804007 validation loss: 0.05309425763401411
+epoch 13 time used: 11  seconds  train loss: 0.06028255835898113 validation loss: 0.046071575909706536
+epoch 14 time used: 11  seconds  train loss: 0.05945122609132239 validation loss: 0.07159385297822718
+epoch 15 time used: 11  seconds  train loss: 0.0640711546979288 validation loss: 0.051039766952285605
+epoch 16 time used: 11  seconds  train loss: 0.057579195988639156 validation loss: 0.052015501797126024
+epoch 17 time used: 11  seconds  train loss: 0.05609629423812833 validation loss: 0.04707286702766465
+epoch 18 time used: 11  seconds  train loss: 0.055920322138821 validation loss: 0.05228174523397804
+epoch 19 time used: 11  seconds  train loss: 0.055481263003061825 validation loss: 0.05066372236690006
+epoch 20 time used: 11  seconds  train loss: 0.05467720444010251 validation loss: 0.05195805776946668
+epoch 21 time used: 11  seconds  train loss: 0.05336668361393371 validation loss: 0.049059399360154715
+epoch 22 time used: 11  seconds  train loss: 0.05263154544570968 validation loss: 0.058664036567805736
+Early stopping at epoch: 23 
+YS.shape, YS_pred.shape, (8139, 6, 47, 1) (8139, 6, 47, 1)
+YS.shape, YS_pred.shape, (8139, 6, 47) (8139, 6, 47)
+**************************************** 
+GraphWaveNet, train, Torch MSE, 6.3391115912e-02, 0.0633911159 
+GraphWaveNet, train, MSE, RMSE, MAE, MAPE, 3597838.6718389378, 1896.7969506088, 687.4656905535, 12.4296431232 
+Model Training Ended ... Tue Nov  9 23:04:02 2021
+covid-outflow testing started Tue Nov  9 23:04:02 2021
+TEST XS.shape, YS.shape (2035, 1, 47, 6) (2035, 6, 47, 1)
+Model Testing Started ... Tue Nov  9 23:04:02 2021
+TIMESTEP_IN, TIMESTEP_OUT 6 6
+YS.shape, YS_pred.shape, (2035, 6, 47, 1) (2035, 6, 47, 1)
+YS.shape, YS_pred.shape, (2035, 6, 47) (2035, 6, 47)
+**************************************** 
+GraphWaveNet, test, Torch MSE, 6.0016698608e-02, 0.0600166986 
+all pred steps, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 2785546.4871099228, 1668.9956522142, 637.2694839662, 16.8317363182 
+1 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 506021.7171809780, 711.3520346361, 364.5591891028, 11.8344748380 
+2 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 949927.4444569738, 974.6422135620, 450.2631660091, 11.6756777857 
+3 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 1884063.1619744310, 1372.6118030872, 579.5303281182, 16.6902533607 
+4 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 3589937.7634903630, 1894.7131084917, 718.1270362185, 18.3825259203 
+5 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 4756572.3457947932, 2180.9567500973, 836.0553651949, 20.5444324858 
+6 step, GraphWaveNet, test, MSE, RMSE, MAE, MAPE, 5026756.4897619998, 2242.0429277251, 875.0818191537, 21.8630535185 
+Model Testing Ended ... Tue Nov  9 23:04:05 2021
