@@ -3,12 +3,12 @@ import pandas as pd
 from copy import copy
 import torch
 from torch import nn, Tensor
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import seaborn as sns
 #sns.axes_style("dark")
-
-
 
 def plot_con_mem(att_with:np.array, att_without:np.array):
     print(att_with.shape, att_without.shape)
@@ -18,11 +18,11 @@ def plot_con_mem(att_with:np.array, att_without:np.array):
 
     fig, (ax1, ax2) = plt.subplots(2, 1)
     ax1.imshow(att_with.transpose(), cmap=cmap, aspect='auto')
-    ax1.set_ylabel('w/', fontsize=15)
+    ax1.set_ylabel('w/', fontsize=18)
     ax1.set_xticks([x for x in range(0, 12*2*14, 12)])
     ax1.set_yticks([])
     ax2.imshow(att_without.transpose(), cmap=cmap, aspect='auto')
-    ax2.set_ylabel('w/o', fontsize=15)
+    ax2.set_ylabel('w/o', fontsize=18)
     ax2.set_xticks([x for x in range(0, 12*2*14, 12)])
     ax2.set_yticks([])
 
@@ -31,12 +31,15 @@ def plot_con_mem(att_with:np.array, att_without:np.array):
     for i in range(len(dates)):
         labels.append('')
         labels.append(dates[i])
-    ax2.set_xticklabels(labels, fontsize=13)
+    ax1.set_xticklabels([])
+    ax2.set_xticklabels(labels, fontsize=15)
 
     fig.set_size_inches(20, 3)
+    # plt.subplots_adjust(left=0.08, right=1.0)
     plt.subplots_adjust(bottom=0.3, top=0.7)
-    plt.show()
-
+    plt.savefig('./case_con_mem1.png')
+    # then manually adjust the space using software
+    
     return
 
 if __name__ == '__main__':
