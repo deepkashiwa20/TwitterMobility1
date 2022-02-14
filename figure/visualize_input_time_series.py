@@ -1,13 +1,12 @@
 import pandas as pd
 import numpy as np
+import matplotlib.text
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-import matplotlib.ticker as ticker
 import matplotlib.patches as patches
 from typing import List, Tuple
 from types import SimpleNamespace
 from pathlib import Path
-from datetime import date
 from configparser import ConfigParser, ExtendedInterpolation
 from jpholiday import is_holiday
 from PIL import Image
@@ -93,38 +92,33 @@ def visualize_typhoon_time_series(args: SimpleNamespace, flow_data: np.ndarray, 
         ax.plot(xdata, tdata[:, area_idx], args.tweet_linecolor, lw=args.lw, label='Disaster-Related Tweet Count')
 
         # Format y-axis
-        ax.set_ylim([-0.05, 1.05])
+        ax.set_ylim([-0.07, 1.07])
         ax.set_yticks([0., 0.25, 0.5, 0.75, 1.0])
         ax.set_ylabel(args.visualize_areas[area_idx], fontweight='bold')
         ax.grid(which='major', zorder=1)
 
-        # Annotate landfall time
-        ax.vlines(mdates.datestr2num('2019-08-14 09:00:00'), -0.05, 1.05, colors='r', lw=1, linestyles='solid', zorder=4)
-        ax.vlines(mdates.datestr2num('2019-08-15 09:00:00'), -0.05, 1.05, colors='r', lw=1, linestyles='solid', zorder=4)
-        ax.vlines(mdates.datestr2num('2019-09-09 05:00:00'), -0.05, 1.05, colors='r', lw=1, linestyles='solid', zorder=4)
-        ax.vlines(mdates.datestr2num('2019-10-12 19:00:00'), -0.05, 1.05, colors='r', lw=1, linestyles='solid', zorder=4)
-
         # Annotate Day Type
-        for d in pd.date_range(start=args.visualize_typhoon_start_date, end=args.visualize_typhoon_end_date, freq='1D'):
-            annotate_day_type(ax, -0.05, 1.05, d, args.holiday_facecolor, args.weekday_facecolor, args.weekend_facecolor)
+        for d in pd.date_range(start=args.visualize_typhoon_start_date, end=args.visualize_typhoon_end_date, freq='1D').to_pydatetime():
+            annotate_day_type(ax, -0.07, 1.07, d, args.holiday_facecolor, args.weekday_facecolor, args.weekend_facecolor)
+
+    # Annotate landfall time
+    axes[-1].scatter([
+        mdates.datestr2num('2019-10-12 19:00:00')
+    ], [-0.03], 30, 'r', marker='^', label="Typhoon Hagibis made landfall", zorder=4)
 
     # Add y-label
-    fig.supylabel(
-        'Normalized Human {} and Tweet Count\nin 2019 Pacific Typhoon Season'.format(args.visualize_flow_type),
+    ylabel = fig.supylabel(
+        'Normalized Data\n(Typhoon Hagibis landfall)'.format(args.visualize_flow_type),
         fontweight='bold', ha='center'
     )
-
-    # Add landfall labels
-    fig.text(0.19, 0.976, 'Typhoon Krosa passed over')
-    fig.text(0.45, 0.976, 'Typhoon Faxai made landfall')
-    fig.text(0.78, 0.976, 'Typhoon Hagibis made landfall')
+    ylabel.set_position((ylabel.get_position()[0] + 0.03, ylabel.get_position()[1]))
 
     # Format x-axis
     axes[-1].xaxis.set_major_locator(mdates.HourLocator(byhour=[0]))
     axes[-1].xaxis.set_minor_locator(mdates.HourLocator(byhour=[12]))
     axes[-1].xaxis.set_major_formatter(mdates.DateFormatter(''))
     axes[-1].xaxis.set_minor_formatter(mdates.DateFormatter('%m-%d'))
-    plt.setp(axes[-1].xaxis.get_minorticklabels(), rotation=90)
+    # plt.setp(axes[-1].xaxis.get_minorticklabels(), rotation=30, horizontalalignment='right', rotation_mode='anchor')
     axes[-1].set_xlim([xdata[0], xdata[-1]])
 
     # Extract plot as numpy
@@ -149,7 +143,7 @@ def visualize_covid_time_series(args: SimpleNamespace, flow_data: np.ndarray, tw
     )
 
     # Generate plots
-    fig = plt.figure(figsize=(args.figure_width, args.figure_height), dpi=args.figure_dpi)
+    fig = plt.figure(figsize=(args.figure_width, args.figure_height * 1.25), dpi=args.figure_dpi)
     axes = fig.subplots(len(args.visualize_areas), 1, sharex=True, gridspec_kw={'hspace': 0.})
     for area_idx in range(len(args.visualize_areas)):
         ax = axes[area_idx]
@@ -157,55 +151,51 @@ def visualize_covid_time_series(args: SimpleNamespace, flow_data: np.ndarray, tw
         ax.plot(xdata, tdata[:, area_idx], args.tweet_linecolor, lw=args.lw, label='Disaster-Related Tweet Count')
 
         # Format y-axis
-        ax.set_ylim([-0.05, 1.05])
+        ax.set_ylim([-0.07, 1.07])
         ax.set_yticks([0., 0.25, 0.5, 0.75, 1.0])
         ax.set_ylabel(args.visualize_areas[area_idx], fontweight='bold')
         ax.grid(which='major', zorder=1)
 
         # Annotate Day Type
-        for d in pd.date_range(start=args.visualize_covid_start_date, end=args.visualize_covid_end_date, freq='1D'):
-            annotate_day_type(ax, -0.05, 1.05, d, args.holiday_facecolor, args.weekday_facecolor, args.weekend_facecolor)
-
-        # Annotate the start time of first three waves of COVID-19 in Japan
-        ax.vlines(mdates.datestr2num('2020-01-15 00:00:00'), -0.05, 1.05, colors='r', lw=1, linestyles='solid', zorder=4)
-        ax.vlines(mdates.datestr2num('2020-06-01 00:00:00'), -0.05, 1.05, colors='r', lw=1, linestyles='solid', zorder=4)
-        ax.vlines(mdates.datestr2num('2020-10-01 00:00:00'), -0.05, 1.05, colors='r', lw=1, linestyles='solid', zorder=4)
+        for d in pd.date_range(start=args.visualize_covid_start_date, end=args.visualize_covid_end_date, freq='1D').to_pydatetime():
+            annotate_day_type(ax, -0.07, 1.07, d, args.holiday_facecolor, args.weekday_facecolor, args.weekend_facecolor)
 
     # Add y-label
-    fig.supylabel(
-        'Normalized Human {} and Tweet Count\nduring COVID-19 Pandemic'.format(args.visualize_flow_type), fontweight='bold', ha='center'
+    ylabel = fig.supylabel(
+        'Normalized Data\n(First Wave of COVID-19)'.format(args.visualize_flow_type),
+        fontweight='bold', ha='center'
     )
+    ylabel.set_position((ylabel.get_position()[0] + 0.03, ylabel.get_position()[1] + 0.15))
 
     # Add COVID-19 labels
     axes[-1].scatter([
-        mdates.datestr2num('2020-04-11 12:00:00'),
-        mdates.datestr2num('2020-08-07 12:00:00'),
-        mdates.datestr2num('2021-01-08 12:00:00')
-    ], [-0.03] * 3, 30, 'r', marker='^', label="Peak of Confirmed COVID-19 Cases", zorder=4)
-    fig.text(0.19, 0.976, 'The first wave of COVID-19')
-    fig.text(0.47, 0.976, 'The second wave of COVID-19')
-    fig.text(0.77, 0.976, 'The third wave of COVID-19')
+        mdates.datestr2num('2020-04-11 12:00:00')
+    ], [-0.03], 30, 'r', marker='^', label=' ', zorder=4)
 
     # Format x-axis
     axes[-1].xaxis.set_major_locator(mdates.DayLocator(interval=7))
     axes[-1].xaxis.set_minor_locator(mdates.DayLocator())
     axes[-1].xaxis.set_major_formatter(mdates.DateFormatter('%y-%m-%d'))
-    plt.setp(axes[-1].xaxis.get_majorticklabels(), rotation=90)
+    plt.setp(axes[-1].xaxis.get_majorticklabels(), rotation=30, horizontalalignment='right', rotation_mode='anchor')
     axes[-1].set_xlim([xdata[0], xdata[-1]])
 
     # Add legend
     days = list()
-    days.append(patches.Patch(edgecolor='k', facecolor=args.weekday_facecolor, label='Weekday'))
-    if args.holiday_facecolor == args.weekend_facecolor:
-        days.append(patches.Patch(edgecolor='k', facecolor=args.holiday_facecolor, label='Weekend or National Holiday'))
+    if args.holiday_facecolor != args.weekend_facecolor or args.holiday_facecolor != args.weekday_facecolor:
+        days.append(patches.Patch(edgecolor='k', facecolor=args.weekday_facecolor, label='Weekday'))
+        if args.holiday_facecolor == args.weekend_facecolor:
+            days.append(patches.Patch(edgecolor='k', facecolor=args.holiday_facecolor, label='Weekend or National Holiday'))
+        else:
+            days.append(patches.Patch(edgecolor='k', facecolor=args.holiday_facecolor, label='National Holiday'))
+            days.append(patches.Patch(edgecolor='k', facecolor=args.weekend_facecolor, label='Weekend'))
+        lhandles = [*axes[-1].get_legend_handles_labels()[0], *days]
     else:
-        days.append(patches.Patch(edgecolor='k', facecolor=args.holiday_facecolor, label='National Holiday'))
-        days.append(patches.Patch(edgecolor='k', facecolor=args.weekend_facecolor, label='Weekend'))
-    lhandles = [*axes[-1].get_legend_handles_labels()[0], *days]
-    fig.legend(handles=lhandles, loc='lower center', ncol=6, bbox_to_anchor=(0.5, 0))
+        lhandles = [axes[-1].get_legend_handles_labels()[0][0], *axes[-1].get_legend_handles_labels()[0][1:][::-1]]
+    fig.legend(handles=lhandles, loc='lower center', ncol=2, bbox_to_anchor=(0.55, 0))
+    fig.text(0.275, 0.04, 'Typhoon Hagibis made landfall or Peak of Confirmed COVID-19 Cases', zorder=20)
 
     # Extract plot as numpy
-    fig.tight_layout(pad=1, rect=(0, 0.05, 1, 1))
+    fig.tight_layout(pad=1, rect=(0, 0.12, 1, 1))
     fig.canvas.draw()
     img = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
     return img.reshape(fig.canvas.get_width_height()[::-1] + (3,))
@@ -235,7 +225,7 @@ def visualize_input_time_series(args: SimpleNamespace) -> None:
     )
     covid_img = visualize_covid_time_series(args, covid_flow, covid_tweet)
 
-    figure = Image.fromarray(np.concatenate((typhoon_img, covid_img), axis=0))
+    figure = Image.fromarray(np.concatenate((typhoon_img[:800, :, :], covid_img[20:, :, :]), axis=0))
     figure.show()
     if args.output_path is not None and args.output_path != "":
         figure.save(args.output_path)
@@ -243,7 +233,7 @@ def visualize_input_time_series(args: SimpleNamespace) -> None:
 
 if __name__ == '__main__':
     config = ConfigParser(interpolation=ExtendedInterpolation())
-    config.read('figures/src/figure1/visualize_input_time_series.conf')
+    config.read('src/IEEE_IJCAI2022_data_visualization/figure1/visualize_input_time_series.conf')
 
     args = SimpleNamespace()
     args.typhoon_tweet_filepath = Path(config.get('DataPath', 'typhoon_tweet_filepath'))
