@@ -17,7 +17,7 @@ import argparse
 from configparser import ConfigParser
 import logging
 import Metrics
-from TransformerT import Transformer
+from TransformerT import Transformer, Transformer_CMem
 from Utils import get_pref_id, get_flow, get_adj, get_seq_data, getXSYS_single, getXSYS, get_onehottime, get_floatdaytime, get_twitter
 
 def refineXSYS(XS, YS):
@@ -32,7 +32,7 @@ def getModel():
     # original
 #     model = Transformer(in_channels=opt.channelin, out_channels=opt.channelout, embed_size=64, pe_length=opt.his_len, num_layers=1, timestep_in=opt.his_len, timestep_out=opt.seq_len, heads=8, forward_expansion=32, gpu=device, dropout=0).to(device)
     # big
-    model = Transformer(in_channels=opt.channelin, out_channels=opt.channelout, embed_size=64, pe_length=opt.his_len, num_layers=2, timestep_in=opt.his_len, timestep_out=opt.seq_len, heads=4, forward_expansion=64, gpu=device, dropout=0).to(device)
+    model = Transformer_CMem(n_nodes=47, in_channels=opt.channelin, out_channels=opt.channelout, embed_size=64, pe_length=opt.his_len, num_layers=2, timestep_in=opt.his_len, timestep_out=opt.seq_len, heads=4, forward_expansion=64, gpu=device, dropout=0).to(device)
     return model
 
 def evaluateModel(model, criterion, data_iter):
@@ -159,8 +159,8 @@ parser.add_argument("--patience", type=float, default=10, help="patience used fo
 parser.add_argument('--trainval_ratio', type=float, default=0.8, help='the total ratio of training data and validation data')
 parser.add_argument('--val_ratio', type=float, default=0.25, help='the ratio of validation data among the trainval ratio')
 parser.add_argument('--seed', type=int, default=1234, help='Random seed.')
-parser.add_argument('--seq_len', type=int, default=12, help='sequence length of values, which should be even nums (2,4,6,12)')
-parser.add_argument('--his_len', type=int, default=12, help='sequence length of observed historical values')
+parser.add_argument('--seq_len', type=int, default=6, help='sequence length of values, which should be even nums (2,4,6,12)')
+parser.add_argument('--his_len', type=int, default=6, help='sequence length of observed historical values')
 parser.add_argument('--gpu', type=int, default=3, help='which gpu to use')
 parser.add_argument('--ex', type=str, default='typhoon-inflow', help='which experiment setting to run') 
 parser.add_argument('--channelin', type=int, default=2, help='number of input channel')

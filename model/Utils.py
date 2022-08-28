@@ -7,7 +7,7 @@ def get_flow(flow_type, flow_path, start_index, end_index, area_index):
     assert flow_type in flow_path, "Please check if the flow data is compatible with flow type."
     if flow_type == 'odflow':
         odflow = ss.load_npz(flow_path)
-        flow = np.array(flow.todense()).reshape((-1, 47, 47))
+        flow = np.array(odflow.todense()).reshape((-1, 47, 47))
         flow_pad = np.zeros((flow.shape[0], flow.shape[1] + 1, flow.shape[2] + 1))
         flow_pad[:, :flow.shape[1], :flow.shape[2]] = flow
         flow_pad = flow_pad[start_index:end_index+1, :, :]

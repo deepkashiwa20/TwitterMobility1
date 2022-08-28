@@ -295,7 +295,7 @@ class STEmbedding(nn.Module):
         SE = self.FC_se(SE)
         TE = TE.unsqueeze(dim=2).to(device=self.device)
         TE = self.FC_te(TE)
-        return SE + TE
+        return SE + TE      # match dim and sum
 
 
 class GMAN_GloMem(nn.Module):

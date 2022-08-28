@@ -29,7 +29,7 @@ def mergeInfo(*args):
     return np.concatenate(args, axis=1)
 
 def getModel():
-    model = gtnet(gcn_true=True,
+    model = MTGNN_CMem(gcn_true=True,
                   buildA_true=True,
                   gcn_depth=2,
                   num_nodes=num_variable,

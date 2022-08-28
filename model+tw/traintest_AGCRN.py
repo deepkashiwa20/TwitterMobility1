@@ -28,7 +28,7 @@ def mergeInfo(*args):
     return np.concatenate(args, axis=-1)
 
 def getModel():
-    model = AGCRN(num_nodes=num_variable, input_dim=opt.channelin, output_dim=opt.channelout, horizon=opt.seq_len).to(device)
+    model = AGCRN_CMem(num_nodes=num_variable, input_dim=opt.channelin, output_dim=opt.channelout, horizon=opt.seq_len).to(device)
     for p in model.parameters():
         if p.dim() > 1:
             nn.init.xavier_uniform_(p)
@@ -160,8 +160,8 @@ parser.add_argument("--patience", type=float, default=10, help="patience used fo
 parser.add_argument('--trainval_ratio', type=float, default=0.8, help='the total ratio of training data and validation data')
 parser.add_argument('--val_ratio', type=float, default=0.25, help='the ratio of validation data among the trainval ratio')
 parser.add_argument('--seed', type=int, default=1234, help='Random seed.')
-parser.add_argument('--seq_len', type=int, default=12, help='sequence length of values, which should be even nums (2,4,6,12)')
-parser.add_argument('--his_len', type=int, default=12, help='sequence length of observed historical values')
+parser.add_argument('--seq_len', type=int, default=6, help='sequence length of values, which should be even nums (2,4,6,12)')
+parser.add_argument('--his_len', type=int, default=6, help='sequence length of observed historical values')
 parser.add_argument('--gpu', type=int, default=3, help='which gpu to use')
 parser.add_argument('--ex', type=str, default='typhoon-inflow-kanto8', help='which experiment setting to run') 
 parser.add_argument('--channelin', type=int, default=2, help='number of input channel')

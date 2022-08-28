@@ -276,6 +276,198 @@ class gtnet(nn.Module):
         return x
 
 
+class MTGNN_CMem(nn.Module):
+    def __init__(self, gcn_true, buildA_true, gcn_depth, num_nodes, device, predefined_A=None, static_feat=None, dropout=0.3, subgraph_size=20, node_dim=40, dilation_exponential=1, conv_channels=32, residual_channels=32, skip_channels=64, end_channels=128, seq_length=12, in_dim=2, out_dim=12, layers=3, propalpha=0.05, tanhalpha=3, layer_norm_affline=True,
+                 mem_num:int=6, mem_dim:int=8):
+        super(MTGNN_CMem, self).__init__()
+        self.gcn_true = gcn_true
+        self.buildA_true = buildA_true
+        self.num_nodes = num_nodes
+        self.dropout = dropout
+        self.predefined_A = predefined_A
+        self.filter_convs = nn.ModuleList()
+        self.gate_convs = nn.ModuleList()
+        self.residual_convs = nn.ModuleList()
+        self.skip_convs = nn.ModuleList()
+        self.gconv1 = nn.ModuleList()
+        self.gconv2 = nn.ModuleList()
+        self.norm = nn.ModuleList()
+        self.start_conv = nn.Conv2d(in_channels=in_dim,
+                                    out_channels=residual_channels,
+                                    kernel_size=(1, 1))
+        self.gc = graph_constructor(num_nodes, subgraph_size, node_dim, device, alpha=tanhalpha, static_feat=static_feat)
+
+        self.seq_length = seq_length
+        kernel_size = 7
+        if dilation_exponential>1:
+            self.receptive_field = int(1+(kernel_size-1)*(dilation_exponential**layers-1)/(dilation_exponential-1))
+        else:
+            self.receptive_field = layers*(kernel_size-1) + 1
+
+        for i in range(1):
+            if dilation_exponential>1:
+                rf_size_i = int(1 + i*(kernel_size-1)*(dilation_exponential**layers-1)/(dilation_exponential-1))
+            else:
+                rf_size_i = i*layers*(kernel_size-1)+1
+            new_dilation = 1
+            for j in range(1,layers+1):
+                if dilation_exponential > 1:
+                    rf_size_j = int(rf_size_i + (kernel_size-1)*(dilation_exponential**j-1)/(dilation_exponential-1))
+                else:
+                    rf_size_j = rf_size_i+j*(kernel_size-1)
+
+                self.filter_convs.append(dilated_inception(residual_channels, conv_channels, dilation_factor=new_dilation))
+                self.gate_convs.append(dilated_inception(residual_channels, conv_channels, dilation_factor=new_dilation))
+                self.residual_convs.append(nn.Conv2d(in_channels=conv_channels,
+                                                     out_channels=residual_channels,
+                                                     kernel_size=(1, 1)))
+                if self.seq_length>self.receptive_field:
+                    self.skip_convs.append(nn.Conv2d(in_channels=conv_channels,
+                                                     out_channels=skip_channels,
+                                                     kernel_size=(1, self.seq_length-rf_size_j+1)))
+                else:
+                    self.skip_convs.append(nn.Conv2d(in_channels=conv_channels,
+                                                     out_channels=skip_channels,
+                                                     kernel_size=(1, self.receptive_field-rf_size_j+1)))
+
+                if self.gcn_true:
+                    self.gconv1.append(mixprop(conv_channels, residual_channels, gcn_depth, dropout, propalpha))
+                    self.gconv2.append(mixprop(conv_channels, residual_channels, gcn_depth, dropout, propalpha))
+
+                if self.seq_length>self.receptive_field:
+                    self.norm.append(LayerNorm((residual_channels, num_nodes, self.seq_length - rf_size_j + 1),elementwise_affine=layer_norm_affline))
+                else:
+                    self.norm.append(LayerNorm((residual_channels, num_nodes, self.receptive_field - rf_size_j + 1),elementwise_affine=layer_norm_affline))
+
+                new_dilation *= dilation_exponential
+
+        self.layers = layers
+        self.end_conv_1 = nn.Conv2d(in_channels=skip_channels+mem_dim,
+                                    out_channels=end_channels,
+                                    kernel_size=(1,1),
+                                    bias=True)
+        self.end_conv_2 = nn.Conv2d(in_channels=end_channels,
+                                    out_channels=out_dim,
+                                    kernel_size=(1,1),
+                                    bias=True)
+        if self.seq_length > self.receptive_field:
+            self.skip0 = nn.Conv2d(in_channels=in_dim, out_channels=skip_channels, kernel_size=(1, self.seq_length), bias=True)
+            self.skipE = nn.Conv2d(in_channels=residual_channels, out_channels=skip_channels, kernel_size=(1, self.seq_length-self.receptive_field+1), bias=True)
+
+        else:
+            self.skip0 = nn.Conv2d(in_channels=in_dim, out_channels=skip_channels, kernel_size=(1, self.receptive_field), bias=True)
+            self.skipE = nn.Conv2d(in_channels=residual_channels, out_channels=skip_channels, kernel_size=(1, 1), bias=True)
+
+        self.idx = torch.arange(self.num_nodes).to(device)
+
+        # memory use
+        self.horizon = out_dim
+        self.N = num_nodes
+        self.D = skip_channels
+        self.mem_num = mem_num
+        self.mem_dim = mem_dim
+        self.st_memory = self.construct_st_memory()  # local memory: frame-wise
+        self.seq_memory = self.construct_seq_memory()  # global memory: seq-wise
+
+    def construct_seq_memory(self):
+        memory_weight = nn.ParameterDict()
+        memory_weight['memory'] = nn.Parameter(torch.randn(self.mem_num, self.mem_dim), requires_grad=True)  # (M, d)
+        nn.init.xavier_normal_(memory_weight['memory'])
+        memory_weight['Wa'] = nn.Parameter(torch.randn(self.horizon * self.N * self.D, self.mem_dim), requires_grad=True)  # for project to query
+        nn.init.xavier_normal_(memory_weight['Wa'])
+        memory_weight['fc'] = nn.Parameter(torch.randn(self.mem_dim, self.mem_dim * self.N * self.horizon), requires_grad=True)
+        nn.init.xavier_normal_(memory_weight['fc'])
+        return memory_weight
+
+    def query_seq_memory(self, h_t: torch.Tensor):
+        assert len(h_t.shape) == 4, 'Input to query Seq-Memory must be a 4D tensor'
+
+        h_t_flat = h_t.reshape(h_t.shape[0], -1)  # (B, T*N*h)
+        query = torch.mm(h_t_flat, self.seq_memory['Wa'])  # (B, d)
+        att_score = torch.softmax(torch.mm(query, self.seq_memory['memory'].t()), dim=1)  # alpha: (B, M)
+        proto_t = torch.mm(att_score, self.seq_memory['memory'])  # (B, d)
+        mem_t = torch.mm(proto_t, self.seq_memory['fc'])  # (B, T*N*d)
+        _h_t = torch.cat([h_t, mem_t.reshape(h_t.shape[0], self.mem_dim, self.N, self.horizon)], dim=-1)  # (B, h+d, N, T)
+        return _h_t
+
+    def construct_st_memory(self):
+        memory_weight = nn.ParameterDict()
+        memory_weight['memory'] = nn.Parameter(torch.randn(self.N, self.mem_num, self.mem_dim), requires_grad=True)  # (N, M, d)
+        nn.init.xavier_normal_(memory_weight['memory'])
+        memory_weight['Wa'] = nn.Parameter(torch.randn(self.D, self.mem_dim), requires_grad=True)  # for project to query
+        nn.init.xavier_normal_(memory_weight['Wa'])
+        memory_weight['fc'] = nn.Parameter(torch.randn(self.mem_dim, self.mem_dim), requires_grad=True)
+        nn.init.xavier_normal_(memory_weight['fc'])
+        return memory_weight
+
+    def query_st_memory(self, h_t: torch.Tensor):
+        assert len(h_t.shape) == 3, 'Input to query ST-Memory must be a 3D tensor'
+
+        query = torch.einsum('bnh,hd->bnd', h_t, self.st_memory['Wa'])  # (B, N, d)
+        att_score = torch.softmax(torch.einsum('bnd,nmd->bnm', query, self.st_memory['memory']), dim=-1)  # alpha: (B, N, M)
+        proto_t = torch.einsum('bnm,nmd->bnd', att_score, self.st_memory['memory'])  # (B, N, d)
+        mem_t = torch.matmul(proto_t, self.st_memory['fc'])  # (B, N, d)
+        _h_t = torch.cat([h_t, mem_t], dim=-1)  # (B, N, h+d)
+        return _h_t
+
+    def forward(self, input, idx=None):
+        mob, tw = torch.unsqueeze(input[:,0,:,:], 1), torch.unsqueeze(input[:,1,:,:], 1)  # channel 0: mob 1: twit
+
+        seq_len = input.size(3)
+        assert seq_len==self.seq_length, 'input sequence length not equal to preset sequence length'
+
+        if self.seq_length<self.receptive_field:
+            input = nn.functional.pad(input,(self.receptive_field-self.seq_length,0,0,0))
+
+        if self.gcn_true:
+            if self.buildA_true:
+                if idx is None:
+                    adp = self.gc(self.idx)
+                else:
+                    adp = self.gc(idx)
+            else:
+                adp = self.predefined_A
+
+        x = self.start_conv(mob)
+        skip = self.skip0(F.dropout(mob, self.dropout, training=self.training))
+        for i in range(self.layers):
+            residual = x
+            filter = self.filter_convs[i](x)
+            filter = torch.tanh(filter)
+            gate = self.gate_convs[i](x)
+            gate = torch.sigmoid(gate)
+            x = filter * gate
+            x = F.dropout(x, self.dropout, training=self.training)
+            s = x
+            s = self.skip_convs[i](s)
+            skip = s + skip
+            if self.gcn_true:
+                x = self.gconv1[i](x, adp)+self.gconv2[i](x, adp.transpose(1,0))
+            else:
+                x = self.residual_convs[i](x)
+
+            x = x + residual[:, :, :, -x.size(3):]
+            if idx is None:
+                x = self.norm[i](x,self.idx)
+            else:
+                x = self.norm[i](x,idx)
+
+        skip = self.skipE(x) + skip
+        x = F.relu(skip)
+
+        # query seq memory
+        x = self.query_seq_memory(x)
+        # query st memory
+        # x = []
+        # for t in range(self.num_pred):
+        #     x.append(self.query_st_memory(output_Transformer[:, t, :, :]))
+        # output_Transformer = torch.stack(x, dim=1)
+
+        x = F.relu(self.end_conv_1(x))
+        x = self.end_conv_2(x)
+        return x
+
+
 def main():
     from Param import CHANNEL, N_NODE, TIMESTEP_IN, TIMESTEP_OUT
     GPU = sys.argv[-1] if len(sys.argv) == 2 else '3'
