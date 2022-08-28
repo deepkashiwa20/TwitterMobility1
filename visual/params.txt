@@ -62,7 +62,8 @@ flow_end_date = 2021-02-28 23:59:59
 twitter_start_date = 2019-12-31 09:00:00
 twitter_end_date = 2021-02-28 08:00:00
 target_start_date = 2020-01-01 00:00:00 
-target_end_date = 2020-12-31 23:00:00
+target_end_date = 2021-02-28 08:00:00
+# target_end_date = 2020-12-31 23:00:00
 target_area = ['Hokkaido', 'Aomori', 'Iwate', 'Miyagi', 'Akita', 'Yamagata',
        'Fukushima', 'Ibaraki', 'Tochigi', 'Gunma', 'Saitama', 'Chiba', 'Tokyo',
        'Kanagawa', 'Niigata', 'Toyama', 'Ishikawa', 'Fukui', 'Yamanashi',
@@ -86,7 +87,8 @@ flow_end_date = 2021-02-28 23:59:59
 twitter_start_date = 2019-12-31 09:00:00
 twitter_end_date = 2021-02-28 08:00:00
 target_start_date = 2020-01-01 00:00:00 
-target_end_date = 2020-12-31 23:00:00
+target_end_date = 2021-02-28 08:00:00
+# target_end_date = 2020-12-31 23:00:00
 target_area = ['Hokkaido', 'Aomori', 'Iwate', 'Miyagi', 'Akita', 'Yamagata',
        'Fukushima', 'Ibaraki', 'Tochigi', 'Gunma', 'Saitama', 'Chiba', 'Tokyo',
        'Kanagawa', 'Niigata', 'Toyama', 'Ishikawa', 'Fukui', 'Yamanashi',
