@@ -17,7 +17,7 @@ import argparse
 from configparser import ConfigParser
 import logging
 import Metrics
-from MemoryAGCRN import *
+from MemeSTN import *
 from Utils import get_pref_id, get_flow, get_adj, get_seq_data, getXSYS_single, getXSYS, get_onehottime, get_twitter
 
 def refineXSYS(XS, YS):
@@ -41,11 +41,12 @@ def evaluateModel(model, criterion, criterion_2, criterion_3, data_iter):
     l_sum, n = 0.0, 0
     with torch.no_grad():
         for x, te, y in data_iter:
-            y_pred, query, pos, neg, att_score = model(x, te)
-            loss1 = criterion(y_pred, y)
+            # y_pred, query, pos, neg = model(x, te)
+            y_pred, att_score = model(x, te)
+            l = criterion(y_pred, y)
             # loss2 = criterion_2(query, pos.detach())
-            loss3 = criterion_3(query, pos.detach(), neg.detach())
-            l = loss1 + 5 * loss3
+            # loss3 = criterion_3(query, pos.detach(), neg.detach())
+            # l = loss1 + 5 * loss3
             l_sum += l.item() * y.shape[0]
             n += y.shape[0]
         return l_sum / n
@@ -56,7 +57,7 @@ def predictModel(model, data_iter):
     model.eval()
     with torch.no_grad():
         for x, te, y in data_iter:
-            YS_pred_batch, _, _, _, att_batch = model(x, te)
+            YS_pred_batch, att_batch = model(x, te)
             YS_pred_batch = YS_pred_batch.cpu().numpy()
             att_batch = att_batch.cpu().numpy()
             YS_pred.append(YS_pred_batch)
@@ -95,11 +96,12 @@ def trainModel(name, mode, XS, YS, TE):
         model.train()
         for x, te, y in train_iter:
             optimizer.zero_grad()
-            y_pred, query, pos, neg, att_score = model(x, te)
-            loss1 = criterion(y_pred, y)
+            # y_pred, query, pos, neg = model(x, te)
+            y_pred, att_score = model(x, te)
+            loss = criterion(y_pred, y)
             # loss2 = compact_loss(query, pos.detach())
-            loss3 = separate_loss(query, pos.detach(), neg.detach())
-            loss = loss1 + 5 * loss3
+            # loss3 = separate_loss(query, pos.detach(), neg.detach())
+            # loss = loss1 + 5 * loss3
             loss.backward()
             optimizer.step()
             loss_sum += loss.item() * y.shape[0]

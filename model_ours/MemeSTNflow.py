@@ -170,7 +170,7 @@ class AGCRN(nn.Module):
 
 class MemoryAGCRN(nn.Module):
     def __init__(self, num_nodes, input_dim, output_dim, horizon, rnn_units=64, num_layers=2, default_graph=True, embed_dim=8, cheb_k=2,
-                 mem_num:int=10, mem_dim:int=8, tcov_in_dim=32, tcov_embed_dim=10, tcov_h_dim=1):
+                 mem_num:int=5, mem_dim:int=8, tcov_in_dim=32, tcov_embed_dim=10, tcov_h_dim=1):
         super(MemoryAGCRN, self).__init__()
         self.num_node = num_nodes
         self.input_dim = input_dim
@@ -216,20 +216,22 @@ class MemoryAGCRN(nn.Module):
 
         TW_t_flat = TW_t.reshape(B, -1)
         query = torch.mm(TW_t_flat, self.global_memory['Wq'])     # (B, d)
-        att_score = torch.softmax(torch.mm(query, self.global_memory['Memory'].t()), dim=1)         # alpha: (B, M)
-        proto_t = torch.mm(att_score, self.global_memory['Memory'])     # (B, d)
+        #att_score = torch.softmax(torch.mm(query, self.global_memory['Memory'].t()), dim=1)         # alpha: (B, M)
+        #proto_t = torch.mm(att_score, self.global_memory['Memory'])     # (B, d)
 
         # memory-guided weight generation
-        Wte1 = torch.matmul(proto_t, self.global_memory['TE_FC1'])
-        Wte2 = torch.matmul(proto_t, self.global_memory['TE_FC2'])
+        # Wte1 = torch.matmul(proto_t, self.global_memory['TE_FC1'])
+        # Wte2 = torch.matmul(proto_t, self.global_memory['TE_FC2'])
+        Wte1 = torch.matmul(query, self.global_memory['TE_FC1'])
+        Wte2 = torch.matmul(query, self.global_memory['TE_FC2'])
         Wte1 = Wte1.reshape(B, self.tcov_in_dim, self.tcov_embed_dim)
         Wte2 = Wte2.reshape(B, self.tcov_embed_dim, self.num_node, self.tcov_h_dim)
 
         # generate pos/neg pair for feature loss
-        _, ind = torch.topk(att_score, k=2, dim=1)
-        pos = self.global_memory['Memory'][ind[:, 0]]
-        neg = self.global_memory['Memory'][ind[:, 1]]
-        return Wte1, Wte2, query, pos, neg, att_score
+        # _, ind = torch.topk(att_score, k=2, dim=1)
+        # pos = self.global_memory['Memory'][ind[:, 0]]
+        # neg = self.global_memory['Memory'][ind[:, 1]]
+        return Wte1, Wte2     #, query, pos, neg
 
     # def forward(self, source, targets, teacher_forcing_ratio=0.5):
     def forward(self, source, TE):
@@ -241,10 +243,12 @@ class MemoryAGCRN(nn.Module):
         X, TW = torch.unsqueeze(source[..., 0], -1), torch.unsqueeze(source[..., -1], -1)  # channel 0: mob 1: twi
 
         # twitter branch
-        init_state = self.encoder_tw.init_hidden(TW.shape[0])
-        output_tw, _ = self.encoder_tw(TW, init_state, self.node_embeddings)      # B, T, N, hidden
+        init_state = self.encoder_tw.init_hidden(X.shape[0])
+        output_tw, _ = self.encoder_tw(X, init_state, self.node_embeddings)      # B, T, N, hidden
         output_tw = output_tw[:, -1, :, :]
-        Wte1, Wte2, query, pos, neg, att_score = self.query_global_memory(output_tw)
+
+        # Wte1, Wte2, query, pos, neg = self.query_global_memory(output_tw)
+        Wte1, Wte2 = self.query_global_memory(output_tw)
         TE = torch.einsum('bti,bie->bte', TE, Wte1)     # layer 1: -> tcov embed
         # TE = torch.relu(TE)     # enhance inflows, decline outflows
         TE = torch.tanh(TE)
@@ -262,7 +266,7 @@ class MemoryAGCRN(nn.Module):
         output = output.squeeze(-1).reshape(-1, self.horizon, self.output_dim, self.num_node)
         output = output.permute(0, 1, 3, 2)                             #B, T, N, C
 
-        return torch.tanh(output), query, pos, neg, att_score
+        return torch.tanh(output)       #, query, pos, neg
 
 
 class AGCRN_CMem(nn.Module):

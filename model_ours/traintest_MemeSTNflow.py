@@ -17,7 +17,7 @@ import argparse
 from configparser import ConfigParser
 import logging
 import Metrics
-from MemoryAGCRN import *
+from MemeSTNflow import *
 from Utils import get_pref_id, get_flow, get_adj, get_seq_data, getXSYS_single, getXSYS, get_onehottime, get_twitter
 
 def refineXSYS(XS, YS):
@@ -41,29 +41,26 @@ def evaluateModel(model, criterion, criterion_2, criterion_3, data_iter):
     l_sum, n = 0.0, 0
     with torch.no_grad():
         for x, te, y in data_iter:
-            y_pred, query, pos, neg, att_score = model(x, te)
-            loss1 = criterion(y_pred, y)
+            # y_pred, query, pos, neg = model(x, te)
+            y_pred = model(x, te)
+            l = criterion(y_pred, y)
             # loss2 = criterion_2(query, pos.detach())
-            loss3 = criterion_3(query, pos.detach(), neg.detach())
-            l = loss1 + 5 * loss3
+            # loss3 = criterion_3(query, pos.detach(), neg.detach())
+            # l = loss1 + 5 * loss3
             l_sum += l.item() * y.shape[0]
             n += y.shape[0]
         return l_sum / n
 
 def predictModel(model, data_iter):
     YS_pred = []
-    att = []
     model.eval()
     with torch.no_grad():
         for x, te, y in data_iter:
-            YS_pred_batch, _, _, _, att_batch = model(x, te)
+            YS_pred_batch = model(x, te)
             YS_pred_batch = YS_pred_batch.cpu().numpy()
-            att_batch = att_batch.cpu().numpy()
             YS_pred.append(YS_pred_batch)
-            att.append(att_batch)
         YS_pred = np.vstack(YS_pred)
-        att = np.vstack(att)
-    return YS_pred, att
+    return YS_pred
 
 def trainModel(name, mode, XS, YS, TE):
     logger.info('Model Training Started ...', time.ctime())
@@ -95,11 +92,12 @@ def trainModel(name, mode, XS, YS, TE):
         model.train()
         for x, te, y in train_iter:
             optimizer.zero_grad()
-            y_pred, query, pos, neg, att_score = model(x, te)
-            loss1 = criterion(y_pred, y)
+            # y_pred, query, pos, neg = model(x, te)
+            y_pred = model(x, te)
+            loss = criterion(y_pred, y)
             # loss2 = compact_loss(query, pos.detach())
-            loss3 = separate_loss(query, pos.detach(), neg.detach())
-            loss = loss1 + 5 * loss3
+            # loss3 = separate_loss(query, pos.detach(), neg.detach())
+            # loss = loss1 + 5 * loss3
             loss.backward()
             optimizer.step()
             loss_sum += loss.item() * y.shape[0]
@@ -122,7 +120,7 @@ def trainModel(name, mode, XS, YS, TE):
             f.write("%s, %d, %s, %d, %s, %s, %.10f, %s, %.10f\n" % ("epoch", epoch, "time used", epoch_time, "seconds", "train loss", train_loss, "validation loss:", val_loss))
             
     torch_score = evaluateModel(model, criterion, compact_loss, separate_loss, train_iter)
-    YS_pred, att = predictModel(model, torch.utils.data.DataLoader(trainval_data, opt.batch_size, shuffle=False))
+    YS_pred = predictModel(model, torch.utils.data.DataLoader(trainval_data, opt.batch_size, shuffle=False))
     logger.info('YS.shape, YS_pred.shape,', YS.shape, YS_pred.shape)
     # YS, YS_pred = scaler.inverse_transform(np.squeeze(YS)), scaler.inverse_transform(np.squeeze(YS_pred))
     YS, YS_pred = np.squeeze(YS), np.squeeze(YS_pred)
@@ -155,7 +153,7 @@ def testModel(name, mode, XS, YS, TE):
         compact_loss = nn.MSELoss()
         separate_loss = nn.TripletMarginLoss(margin=1.0)
     torch_score = evaluateModel(model, criterion, compact_loss, separate_loss, test_iter)
-    YS_pred, att = predictModel(model, test_iter)
+    YS_pred = predictModel(model, test_iter)
     logger.info('YS.shape, YS_pred.shape,', YS.shape, YS_pred.shape)
     # YS, YS_pred = scaler.inverse_transform(np.squeeze(YS)), scaler.inverse_transform(np.squeeze(YS_pred))
     YS, YS_pred = np.squeeze(YS), np.squeeze(YS_pred)
@@ -165,7 +163,6 @@ def testModel(name, mode, XS, YS, TE):
     logger.info('YS.shape, YS_pred.shape,', YS.shape, YS_pred.shape)
     np.save(path + f'/{name}_prediction.npy', YS_pred)
     np.save(path + f'/{name}_groundtruth.npy', YS)
-    np.save(path + f'/{name}_att_score.npy', att)
     MSE, RMSE, MAE, MAPE = Metrics.evaluate(YS, YS_pred)
     logger.info('*' * 40)
     logger.info("%s, %s, Torch MSE, %.10e, %.10f" % (name, mode, torch_score, torch_score))
