@@ -17,8 +17,8 @@ import argparse
 from configparser import ConfigParser
 import logging
 import Metrics
-from GraphWaveNet import *
-from Utils import get_pref_id, get_flow, get_adj, get_seq_data, getXSYS_single, getXSYS, get_twitter
+from GraphWaveNetT import *
+from Utils import get_pref_id, get_flow, get_adj, get_seq_data, getXSYS_single, getXSYS, get_twitter, get_onehottime, get_floatdaytime
 
 def refineXSYS(XS, YS):
     XS, YS = XS[:, :, :, np.newaxis], YS[:, :, :, np.newaxis]
@@ -172,7 +172,7 @@ parser.add_argument('--seq_len', type=int, default=6, help='sequence length of v
 parser.add_argument('--his_len', type=int, default=6, help='sequence length of observed historical values')
 parser.add_argument('--gpu', type=int, default=3, help='which gpu to use')
 parser.add_argument('--ex', type=str, default='typhoon-inflow', help='which experiment setting to run') 
-parser.add_argument('--channelin', type=int, default=2, help='number of input channel')
+parser.add_argument('--channelin', type=int, default=3, help='number of input channel')
 # tw_condition, his_condition = False, False
 # parser.add_argument('--cond_feat', type=int, default=32 + sum([tw_condition, his_condition]), help='condition features of D and G')
 # parser.add_argument('--cond_source', type=int, default=sum([1, tw_condition, his_condition]), help='1 is only time label, 2 is his_x or twitter label, 3 is time, twitter, his')
@@ -255,7 +255,10 @@ def main():
     start_index, end_index = flow_all_times.index(target_start_date), flow_all_times.index(target_end_date)
     area_index = get_pref_id(pref_path, target_area)
     flow = get_flow(flow_type, flow_path, start_index, end_index, area_index)
-    twitter = get_twitter(twitter_path, pref_path, target_start_date, target_end_date, target_area)
+    twitter = get_twitter(twitter_path, pref_path, target_start_date, target_end_date, target_area)    
+    floattime = get_floatdaytime(target_start_date, target_end_date, freq)
+    floattime = np.repeat(floattime[:, np.newaxis], num_variable, axis=1)
+
     data = scaler.fit_transform(flow)
     data_tw = scaler_tw.fit_transform(twitter)
     logger.info('flow.shape, twitter.shape', data.shape, data.min(), data.max(), data_tw.shape, data_tw.min(), data_tw.max())
@@ -265,7 +268,9 @@ def main():
     trainXS, trainYS = refineXSYS(trainXS, trainYS)
     trainXS_tw, trainYS_tw = getXSYS(data_tw, 'train', opt.his_len, opt.seq_len, opt.trainval_ratio)
     trainXS_tw, trainYS_tw = refineXSYS(trainXS_tw, trainYS_tw)
-    trainXS = mergeInfo(trainXS, trainXS_tw)
+    trainXS_tt, trainYS_tt = getXSYS(floattime, 'train', opt.his_len, opt.seq_len, opt.trainval_ratio)
+    trainXS_tt, trainYS_tt = refineXSYS(trainXS_tt, trainYS_tt)
+    trainXS = mergeInfo(trainXS, trainXS_tw, trainXS_tt)
     logger.info('TRAIN XS.shape YS,shape', trainXS.shape, trainYS.shape)
     trainModel(model_name, 'train', trainXS, trainYS)
         
@@ -274,7 +279,9 @@ def main():
     testXS, testYS = refineXSYS(testXS, testYS)
     testXS_tw, testYS_tw = getXSYS(data_tw, 'test', opt.his_len, opt.seq_len, opt.trainval_ratio)
     testXS_tw, testYS_tw = refineXSYS(testXS_tw, testYS_tw)
-    testXS = mergeInfo(testXS, testXS_tw)
+    testXS_tt, testYS_tt = getXSYS(floattime, 'test', opt.his_len, opt.seq_len, opt.trainval_ratio)
+    testXS_tt, testYS_tt = refineXSYS(testXS_tt, testYS_tt)
+    testXS = mergeInfo(testXS, testXS_tw, testXS_tt)
     logger.info('TEST XS.shape, YS.shape', testXS.shape, testYS.shape)
     testModel(model_name, 'test', testXS, testYS)
 
