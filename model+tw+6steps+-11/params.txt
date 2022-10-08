@@ -1,3 +1,20 @@
+[covid-poi]
+channel = 1
+event = covid
+flow_type = poi
+flow_path = ../data/poi_hour20200101_20210221.npy
+adj_path = ../data/US_state_adj_mtx.npy
+twitter_path = ../data/US_COVID-19_all_tweet_count_by_state.csv
+pref_path = ../data/US_states.csv
+freq = 1H
+flow_start_date = 2020-01-01 00:00:00
+flow_end_date = 2021-02-21 23:59:59
+twitter_start_date = 2020-01-01 00:00:00
+twitter_end_date = 2021-02-28 18:00:00
+target_start_date = 2020-01-01 00:00:00
+target_end_date = 2021-02-21 23:00:00
+target_area = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY']
+
 [hurricane-poi]
 channel = 1
 event = hurricane

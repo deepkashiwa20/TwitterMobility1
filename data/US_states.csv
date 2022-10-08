@@ -1,0 +1,52 @@
+prefecture_code,StateName,StateCode,TimeZone
+1,Alabama,AL,-6
+2,Alaska,AK,-9
+3,Arizona,AZ,-7
+4,Arkansas,AR,-6
+5,California,CA,-8
+6,Colorado,CO,-7
+7,Connecticut,CT,-5
+8,Delaware,DE,-5
+9,District of Columbia,DC,-5
+10,Florida,FL,-5
+11,Georgia,GA,-5
+12,Hawaii,HI,-10
+13,Idaho,ID,-7
+14,Illinois,IL,-6
+15,Indiana,IN,-5
+16,Iowa,IA,-6
+17,Kansas,KS,-6
+18,Kentucky,KY,-5
+19,Louisiana,LA,-6
+20,Maine,ME,-5
+21,Maryland,MD,-5
+22,Massachusetts,MA,-5
+23,Michigan,MI,-5
+24,Minnesota,MN,-6
+25,Mississippi,MS,-6
+26,Missouri,MO,-6
+27,Montana,MT,-7
+28,Nebraska,NE,-6
+29,Nevada,NV,-8
+30,New Hampshire,NH,-5
+31,New Jersey,NJ,-5
+32,New Mexico,NM,-7
+33,New York,NY,-5
+34,North Carolina,NC,-5
+35,North Dakota,ND,-6
+36,Ohio,OH,-5
+37,Oklahoma,OK,-6
+38,Oregon,OR,-8
+39,Pennsylvania,PA,-5
+40,Rhode Island,RI,-5
+41,South Carolina,SC,-5
+42,South Dakota,SD,-6
+43,Tennessee,TN,-6
+44,Texas,TX,-6
+45,Utah,UT,-7
+46,Vermont,VT,-5
+47,Virginia,VA,-5
+48,Washington,WA,-8
+49,West Virginia,WV,-5
+50,Wisconsin,WI,-6
+51,Wyoming,WY,-7
