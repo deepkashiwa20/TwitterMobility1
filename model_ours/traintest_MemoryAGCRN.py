@@ -41,29 +41,25 @@ def evaluateModel(model, criterion, criterion_2, criterion_3, data_iter):
     l_sum, n = 0.0, 0
     with torch.no_grad():
         for x, te, y in data_iter:
-            y_pred, query, pos, neg, att_score = model(x, te)
+            y_pred, query, pos, neg = model(x, te)
             loss1 = criterion(y_pred, y)
             # loss2 = criterion_2(query, pos.detach())
             loss3 = criterion_3(query, pos.detach(), neg.detach())
-            l = loss1 + 5 * loss3
+            l = loss1 + opt.lamb * loss3
             l_sum += l.item() * y.shape[0]
             n += y.shape[0]
         return l_sum / n
 
 def predictModel(model, data_iter):
     YS_pred = []
-    att = []
     model.eval()
     with torch.no_grad():
         for x, te, y in data_iter:
-            YS_pred_batch, _, _, _, att_batch = model(x, te)
+            YS_pred_batch, _, _, _ = model(x, te)
             YS_pred_batch = YS_pred_batch.cpu().numpy()
-            att_batch = att_batch.cpu().numpy()
             YS_pred.append(YS_pred_batch)
-            att.append(att_batch)
         YS_pred = np.vstack(YS_pred)
-        att = np.vstack(att)
-    return YS_pred, att
+    return YS_pred
 
 def trainModel(name, mode, XS, YS, TE):
     logger.info('Model Training Started ...', time.ctime())
@@ -95,11 +91,11 @@ def trainModel(name, mode, XS, YS, TE):
         model.train()
         for x, te, y in train_iter:
             optimizer.zero_grad()
-            y_pred, query, pos, neg, att_score = model(x, te)
+            y_pred, query, pos, neg = model(x, te)
             loss1 = criterion(y_pred, y)
             # loss2 = compact_loss(query, pos.detach())
             loss3 = separate_loss(query, pos.detach(), neg.detach())
-            loss = loss1 + 5 * loss3
+            loss = loss1 + opt.lamb * loss3
             loss.backward()
             optimizer.step()
             loss_sum += loss.item() * y.shape[0]
@@ -122,7 +118,7 @@ def trainModel(name, mode, XS, YS, TE):
             f.write("%s, %d, %s, %d, %s, %s, %.10f, %s, %.10f\n" % ("epoch", epoch, "time used", epoch_time, "seconds", "train loss", train_loss, "validation loss:", val_loss))
             
     torch_score = evaluateModel(model, criterion, compact_loss, separate_loss, train_iter)
-    YS_pred, att = predictModel(model, torch.utils.data.DataLoader(trainval_data, opt.batch_size, shuffle=False))
+    YS_pred = predictModel(model, torch.utils.data.DataLoader(trainval_data, opt.batch_size, shuffle=False))
     logger.info('YS.shape, YS_pred.shape,', YS.shape, YS_pred.shape)
     # YS, YS_pred = scaler.inverse_transform(np.squeeze(YS)), scaler.inverse_transform(np.squeeze(YS_pred))
     YS, YS_pred = np.squeeze(YS), np.squeeze(YS_pred)
@@ -155,7 +151,7 @@ def testModel(name, mode, XS, YS, TE):
         compact_loss = nn.MSELoss()
         separate_loss = nn.TripletMarginLoss(margin=1.0)
     torch_score = evaluateModel(model, criterion, compact_loss, separate_loss, test_iter)
-    YS_pred, att = predictModel(model, test_iter)
+    YS_pred = predictModel(model, test_iter)
     logger.info('YS.shape, YS_pred.shape,', YS.shape, YS_pred.shape)
     # YS, YS_pred = scaler.inverse_transform(np.squeeze(YS)), scaler.inverse_transform(np.squeeze(YS_pred))
     YS, YS_pred = np.squeeze(YS), np.squeeze(YS_pred)
@@ -165,7 +161,6 @@ def testModel(name, mode, XS, YS, TE):
     logger.info('YS.shape, YS_pred.shape,', YS.shape, YS_pred.shape)
     np.save(path + f'/{name}_prediction.npy', YS_pred)
     np.save(path + f'/{name}_groundtruth.npy', YS)
-    np.save(path + f'/{name}_att_score.npy', att)
     MSE, RMSE, MAE, MAPE = Metrics.evaluate(YS, YS_pred)
     logger.info('*' * 40)
     logger.info("%s, %s, Torch MSE, %.10e, %.10f" % (name, mode, torch_score, torch_score))
@@ -195,6 +190,7 @@ parser.add_argument('--gpu', type=int, default=3, help='which gpu to use')
 parser.add_argument('--ex', type=str, default='typhoon-inflow', help='which experiment setting to run')
 parser.add_argument('--channelin', type=int, default=1, help='number of input channel')
 parser.add_argument('--channelout', type=int, default=1, help='number of output channel')
+parser.add_argument('--lamb', type=float, default=0.1, help='mae_loss + lamb * sep_loss')
 # tw_condition, his_condition = False, False
 # parser.add_argument('--cond_feat', type=int, default=32 + sum([tw_condition, his_condition]), help='condition features of D and G')
 # parser.add_argument('--cond_source', type=int, default=sum([1, tw_condition, his_condition]), help='1 is only time label, 2 is his_x or twitter label, 3 is time, twitter, his')
@@ -223,7 +219,7 @@ num_variable = len(target_area)
 _, filename = os.path.split(os.path.abspath(sys.argv[0]))
 filename = os.path.splitext(filename)[0]
 model_name = filename.split('_')[-1]
-path = f'./save/{exp}_{model_name}_' + time.strftime('%Y%m%d%H%M', time.localtime())
+path = f'./save/{exp}_{model_name}_' + time.strftime('%Y%m%d%H%M%S', time.localtime())
 logging_path = f'{path}/logging.txt'
 if not os.path.exists(path): os.makedirs(path)
 shutil.copy2(sys.argv[0], path)
@@ -262,6 +258,7 @@ logger.info('target_start_date', target_start_date)
 logger.info('target_end_date', target_end_date)
 logger.info('target_area', target_area)
 logger.info('model_name', model_name)
+logger.info('lambda', opt.lamb)
 
 device = torch.device("cuda:{}".format(opt.gpu)) if torch.cuda.is_available() else torch.device("cpu")
 np.random.seed(opt.seed)

@@ -229,7 +229,7 @@ class MemoryAGCRN(nn.Module):
         _, ind = torch.topk(att_score, k=2, dim=1)
         pos = self.global_memory['Memory'][ind[:, 0]]
         neg = self.global_memory['Memory'][ind[:, 1]]
-        return Wte1, Wte2, query, pos, neg, att_score
+        return Wte1, Wte2, query, pos, neg
 
     # def forward(self, source, targets, teacher_forcing_ratio=0.5):
     def forward(self, source, TE):
@@ -244,7 +244,7 @@ class MemoryAGCRN(nn.Module):
         init_state = self.encoder_tw.init_hidden(TW.shape[0])
         output_tw, _ = self.encoder_tw(TW, init_state, self.node_embeddings)      # B, T, N, hidden
         output_tw = output_tw[:, -1, :, :]
-        Wte1, Wte2, query, pos, neg, att_score = self.query_global_memory(output_tw)
+        Wte1, Wte2, query, pos, neg = self.query_global_memory(output_tw)
         TE = torch.einsum('bti,bie->bte', TE, Wte1)     # layer 1: -> tcov embed
         # TE = torch.relu(TE)     # enhance inflows, decline outflows
         TE = torch.tanh(TE)
@@ -262,7 +262,7 @@ class MemoryAGCRN(nn.Module):
         output = output.squeeze(-1).reshape(-1, self.horizon, self.output_dim, self.num_node)
         output = output.permute(0, 1, 3, 2)                             #B, T, N, C
 
-        return torch.tanh(output), query, pos, neg, att_score
+        return torch.tanh(output), query, pos, neg
 
 
 class AGCRN_CMem(nn.Module):

@@ -29,7 +29,7 @@ flow_end_date = 2019-10-30 23:59:59
 twitter_start_date = 2019-05-28 19:00:00
 twitter_end_date = 2019-11-01 18:00:00
 target_start_date = 2019-07-01 00:00:00
-target_end_date = 2019-10-30 23:00:00
+target_end_date = 2019-09-10 23:00:00
 target_area = ['Alachua', 'Baker', 'Bay', 'Bradford', 'Brevard', 'Broward', 'Calhoun', 'Charlotte', 'Citrus', 'Clay',
               'Collier', 'Columbia', 'DeSoto', 'Dixie', 'Duval', 'Escambia', 'Flagler', 'Franklin', 'Gadsden', 'Gilchrist',
               'Glades', 'Gulf', 'Hamilton', 'Hardee', 'Hendry', 'Hernando', 'Highlands', 'Hillsborough', 'Holmes',
