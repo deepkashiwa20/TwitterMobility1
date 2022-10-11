@@ -233,8 +233,9 @@ class MemoryAGCRN(nn.Module):
 
         # input
         X = torch.unsqueeze(source[..., 0], -1)  # channel 0: mob 1: twi
-        TW = torch.randn(X.shape[0], X.shape[1], X.shape[2], 1).to(X.device)
-
+        # TW = torch.randn(X.shape[0], X.shape[1], X.shape[2], 1).to(X.device)
+        TW = torch.unsqueeze(source[..., -1], -1)
+    
         # twitter branch
         init_state = self.encoder_tw.init_hidden(TW.shape[0])
         output_tw, _ = self.encoder_tw(TW, init_state, self.node_embeddings)      # B, T, N, hidden

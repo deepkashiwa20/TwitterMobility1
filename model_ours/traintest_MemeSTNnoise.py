@@ -276,9 +276,10 @@ def main():
     area_index = get_pref_id(pref_path, target_area)
     flow = get_flow(flow_type, flow_path, start_index, end_index, area_index)
     onehottime = get_onehottime(target_start_date, target_end_date, freq)
-    twitter = get_twitter(twitter_path, pref_path, target_start_date, target_end_date, target_area)
+    # twitter = get_twitter(twitter_path, pref_path, target_start_date, target_end_date, target_area)
     data = scaler.fit_transform(flow)
-    data_tw = scaler_tw.fit_transform(twitter)
+    # data_tw = scaler_tw.fit_transform(twitter)
+    data_tw = np.random.uniform(low=-1, high=1, size=data.shape)
     logger.info('original flow data, flow.min, flow.max, onehottime', flow.shape, flow.min(), flow.max(), onehottime.shape)
     logger.info('flow.shape, twitter.shape', data.shape, data.min(), data.max(), data_tw.shape, data_tw.min(), data_tw.max())
     
